@@ -1,0 +1,185 @@
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../supabaseClient";
+import { User, ArrowRight, X, Sparkles } from "lucide-react";
+import OurStory from "../components/OurStory";
+
+const Login = () => {
+  const [username, setUsername] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [isStoryOpen, setIsStoryOpen] = useState(false);
+  const navigate = useNavigate();
+
+  // Set dynamic browser document title based on modal state
+  useEffect(() => {
+    if (isStoryOpen) {
+      document.title = "Behind the Spark ✨ - Connect";
+    } else {
+      document.title = "Login - Connect";
+    }
+  }, [isStoryOpen]);
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate("/", { replace: true });
+      }
+    });
+  }, [navigate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const cleanUsername = username.trim().toLowerCase();
+    if (!cleanUsername) return;
+
+    setLoading(true);
+    setError(null);
+
+    // Auto-generate a consistent email and password based on the username
+    const fakeEmail = `${cleanUsername}@connectapp.com`;
+    const staticPassword = "PermanentPassword123!";
+
+    try {
+      // 1. Try to Login
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: fakeEmail,
+        password: staticPassword,
+      });
+
+      if (signInError) {
+        // 2. If login fails, try to Register (Sign Up)
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: fakeEmail,
+          password: staticPassword,
+          options: {
+            data: { display_name: cleanUsername },
+          },
+        });
+
+        if (signUpError) throw signUpError;
+        
+        // Signed up successfully
+        navigate("/", { replace: true });
+      } else {
+        // Logged in successfully
+        navigate("/", { replace: true });
+      }
+    } catch (err) {
+      setError(err.message || "Authentication failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="relative flex items-center justify-center min-h-screen bg-blue-500 overflow-hidden p-4 select-none">
+      {/* 1. Ambient Glowing Blobs to create background depth */}
+      <div className="absolute top-1/4 left-1/3 w-[30rem] h-[30rem] bg-blue-400/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-[24rem] h-[24rem] bg-indigo-400/25 rounded-full blur-[100px] pointer-events-none z-0"></div>
+
+      {/* 2. Login Box Container - Pristine White Card on Blue-500 Background */}
+      <div className="relative bg-white/95 backdrop-blur-2xl border-2 border-blue-500/25 p-8 md:p-12 rounded-[2.5rem] shadow-[0_25px_60px_rgba(29,78,216,0.3)] w-full max-w-md text-center transition-all duration-300 hover:border-blue-500/40 hover:shadow-[0_30px_70px_rgba(29,78,216,0.4)] z-10">
+        
+        {/* Logo and Brand Header */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="relative mb-4 group">
+            <div className="absolute inset-0 bg-blue-100 rounded-2xl blur-md transition duration-300"></div>
+            <img
+              src="/connect.png"
+              alt="Connect Logo"
+              className="relative w-16 h-16 rounded-2xl object-contain shadow-sm transition duration-350 group-hover:scale-[1.03]"
+            />
+          </div>
+
+          <h1 className="text-2xl font-black text-blue-900 tracking-tight">
+            Connect
+          </h1>
+          <p className="text-blue-600 text-xs mt-2 max-w-[280px] leading-relaxed font-semibold">
+            Your centralized cloud workspace for notes, canvas files, and assets.
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-600 text-xs text-left animate-shake leading-relaxed">
+            <span className="font-bold uppercase tracking-wider text-[9px] block mb-0.5 text-red-700">Authentication Failed</span>
+            {error}
+          </div>
+        )}
+
+        {/* Input Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="relative group">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-blue-400 group-focus-within:text-blue-600 transition-colors">
+              <User size={18} />
+            </span>
+            <input
+              type="text"
+              placeholder="Username"
+              className="w-full pl-11 pr-4 py-4 bg-blue-50/50 border-2 border-blue-100 text-blue-900 placeholder-blue-400 rounded-2xl outline-none transition-all duration-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-sm font-semibold focus:bg-white select-text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || !username.trim()}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/35 active:scale-[0.98] border border-blue-500/10"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2 text-white font-bold">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                Connecting...
+              </span>
+            ) : (
+              <>
+                Let's Go <ArrowRight size={16} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Register Hint */}
+        <div className="mt-8 text-center text-xs text-blue-500/80 font-medium">
+          First-time username will automatically register a new account.
+        </div>
+
+        {/* Story Trigger Button */}
+        <button
+          type="button"
+          onClick={() => setIsStoryOpen(true)}
+          className="mt-6 text-xs text-blue-600 hover:text-blue-800 font-bold transition duration-200 flex items-center justify-center gap-1.5 mx-auto bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-full border border-blue-100 cursor-pointer shadow-sm"
+        >
+          <Sparkles size={12} className="text-yellow-500" />
+          Behind the Spark ✨
+        </button>
+      </div>
+
+      {/* Story Modal */}
+      {isStoryOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="relative bg-white border-2 border-blue-100 rounded-[2.5rem] shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-zoomIn">
+            {/* Close Button */}
+            <button
+              onClick={() => setIsStoryOpen(false)}
+              className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition duration-200 z-50 cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Modal Scrollable Container */}
+            <div className="flex-1 overflow-y-auto">
+              <OurStory isModal={true} />
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+};
+
+export default Login;
