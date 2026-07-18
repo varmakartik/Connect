@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /dashboard
 
-Sitemap: https://connectapp.com/sitemap.xml
+Sitemap: https://crosser.vercel.app/sitemap.xml
