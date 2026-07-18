@@ -3,7 +3,6 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  Navigate,
 } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoadingScreen from "./components/LoadingScreen";
@@ -11,6 +10,7 @@ import LoadingScreen from "./components/LoadingScreen";
 // Lazy-load routes for optimized initial bundle sizes
 const Login = lazy(() => import("./pages/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const App = () => {
   return (
@@ -25,8 +25,8 @@ const App = () => {
             <Route path="/" element={<Dashboard />} />
           </Route>
 
-          {/* Fallback Catch-all Route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Fallback Catch-all Route - Cherry Blossom 404 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </Router>
