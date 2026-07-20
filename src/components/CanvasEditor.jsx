@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   FileCode,
   Image as ImageIcon,
+  Download,
 } from "lucide-react";
 
 const CanvasEditor = ({
@@ -26,6 +27,28 @@ const CanvasEditor = ({
   const [codeMode, setCodeMode] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+
+  const handleDownload = async (url, filename) => {
+    if (!url) return;
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename || "document";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename || "document";
+      link.target = "_blank";
+      link.click();
+    }
+  };
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -95,7 +118,7 @@ const CanvasEditor = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`p-6 h-full overflow-y-auto relative transition-colors duration-300 ${
+      className={`p-3.5 sm:p-6 h-full overflow-y-auto overflow-x-hidden relative transition-colors duration-300 ${
         codeMode ? "bg-[#0d1117]" : "bg-slate-950"
       }`}
     >
@@ -173,22 +196,22 @@ const CanvasEditor = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
           {/* Toggle Code / Grid View */}
           <button
             onClick={() => setCodeMode(!codeMode)}
-            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all duration-200 border w-full sm:w-auto ${
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 sm:py-2.5 rounded-xl font-bold text-xs transition-all duration-200 border ${
               codeMode
                 ? "bg-blue-600/20 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.25)]"
                 : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800"
             }`}
           >
             {codeMode ? <Code size={16} /> : <LayoutGrid size={16} />}
-            {codeMode ? "Code Mode" : "Grid View"}
+            <span>{codeMode ? "Code Mode" : "Grid View"}</span>
           </button>
 
           {/* Upload Button */}
-          <label className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-5 py-2.5 rounded-xl font-bold text-xs cursor-pointer transition-all duration-200 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 shrink-0 w-full sm:w-auto active:scale-[0.98]">
+          <label className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white px-5 py-3 sm:py-2.5 rounded-xl font-bold text-xs cursor-pointer transition-all duration-200 shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 shrink-0 active:scale-[0.98]">
             <UploadCloud size={16} />
             <span>Upload</span>
             <input
@@ -289,7 +312,7 @@ const CanvasEditor = ({
                   ? `bg-[#161b22] border-l-4 border-blue-500 p-4 flex items-center justify-between group hover:bg-[#1c2128] border-y border-r border-[#30363d] rounded-r-xl ${
                       isDeleting ? "max-h-0 py-0 my-0 border-none overflow-hidden" : "max-h-[150px]"
                     }`
-                  : "bg-slate-900 p-5 rounded-2xl shadow-xl border border-slate-800 hover:border-blue-500/50 group flex flex-col justify-between"
+                  : "bg-slate-900 p-4 sm:p-5 rounded-2xl shadow-xl border border-slate-800 hover:border-blue-500/50 group flex flex-col justify-between"
               }`}
             >
             {/* ITEM CARD CONTENTS */}
@@ -297,11 +320,11 @@ const CanvasEditor = ({
               
               {/* Media Preview or Icon */}
               {!codeMode && item.type === "image" && item.url ? (
-                <div className="w-full h-36 bg-slate-950 rounded-xl overflow-hidden mb-4 border border-slate-850 flex items-center justify-center">
+                <div className="w-full h-40 sm:h-44 bg-slate-950/60 rounded-xl overflow-hidden mb-4 border border-slate-800/80 flex items-center justify-center p-2 relative group-hover:border-blue-500/30 transition-colors">
                   <img
                     src={item.url}
                     alt={item.title}
-                    className="w-full h-full object-cover transition-transform duration-350 group-hover:scale-105"
+                    className="max-h-full max-w-full object-contain drop-shadow-md rounded-lg transition-transform duration-300 group-hover:scale-105"
                     loading="lazy"
                   />
                 </div>
@@ -378,52 +401,94 @@ const CanvasEditor = ({
 
             {/* ACTION FOOTER */}
             <div
-              className={`flex items-center gap-2 ${
+              className={`flex flex-col gap-3 ${
                 codeMode
-                  ? "ml-4"
-                  : "mt-5 border-t border-slate-800/80 pt-4"
+                  ? "ml-4 !flex-row items-center justify-between"
+                  : "mt-4 border-t border-slate-800/80 pt-3.5"
               }`}
             >
-              <div
-                className={`flex items-center gap-1 transition-opacity duration-200 ${
-                  codeMode ? "opacity-0 group-hover:opacity-100" : ""
-                }`}
-              >
-                <button
-                  onClick={() => startEditing(item)}
-                  className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-850 rounded-xl transition"
-                  title="Rename File"
-                >
-                  <Edit3 size={16} />
-                </button>
-                <button
-                  onClick={() => confirmDelete(item)}
-                  className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-850 rounded-xl transition"
-                  title="Delete File"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+              {!codeMode ? (
+                <>
+                  {/* Primary Action Buttons (View & Download) */}
+                  <div className="grid grid-cols-2 gap-2 w-full">
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs bg-blue-600 hover:bg-blue-550 text-white shadow-md shadow-blue-600/15 active:scale-[0.97] transition-all"
+                      title="View File"
+                    >
+                      <Eye size={15} className="shrink-0" />
+                      <span>View</span>
+                    </a>
 
-              <div
-                className={`flex flex-1 gap-2 pl-2 border-l ${
-                  codeMode ? "border-slate-800" : "border-slate-800"
-                }`}
-              >
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-bold text-xs transition-all duration-200 ${
-                    codeMode
-                      ? "text-blue-400 bg-blue-500/10 hover:bg-blue-500/25 border border-blue-500/20"
-                      : "bg-blue-600 text-white hover:bg-blue-550 shadow-md shadow-blue-600/10 active:scale-[0.97]"
-                  }`}
-                >
-                  <Eye size={14} />
-                  <span>{codeMode ? "" : "View File"}</span>
-                </a>
-              </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(item.url, item.title)}
+                      className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-550 text-white shadow-md shadow-emerald-600/15 active:scale-[0.97] transition-all cursor-pointer"
+                      title="Download File"
+                    >
+                      <Download size={15} className="shrink-0" />
+                      <span>Download</span>
+                    </button>
+                  </div>
+
+                  {/* Secondary Toolbar (Rename & Delete) */}
+                  <div className="flex items-center justify-between pt-0.5 text-slate-400 text-xs font-semibold">
+                    <button
+                      onClick={() => startEditing(item)}
+                      className="flex items-center gap-1.5 px-2 py-1 hover:text-blue-400 hover:bg-slate-800/80 rounded-lg transition"
+                      title="Rename File"
+                    >
+                      <Edit3 size={14} />
+                      <span className="text-[11px]">Rename</span>
+                    </button>
+                    <button
+                      onClick={() => confirmDelete(item)}
+                      className="flex items-center gap-1.5 px-2 py-1 hover:text-red-400 hover:bg-slate-800/80 rounded-lg transition"
+                      title="Delete File"
+                    >
+                      <Trash2 size={14} />
+                      <span className="text-[11px]">Delete</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Code Mode Actions */
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => startEditing(item)}
+                    className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-xl transition"
+                    title="Rename File"
+                  >
+                    <Edit3 size={16} />
+                  </button>
+                  <button
+                    onClick={() => confirmDelete(item)}
+                    className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl transition"
+                    title="Delete File"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-2 text-blue-400 bg-blue-500/10 hover:bg-blue-500/25 border border-blue-500/20 rounded-xl transition"
+                    title="View File"
+                  >
+                    <Eye size={16} />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(item.url, item.title)}
+                    className="p-2 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/20 rounded-xl transition cursor-pointer"
+                    title="Download File"
+                  >
+                    <Download size={16} />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         );
