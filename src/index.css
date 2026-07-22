@@ -47,13 +47,58 @@ html, body {
   color: #1e3a8a !important; /* dark blue-900 */
 }
 
-/* 5. Custom Transitions for Deletion Animations */
+/* 5. Custom Smooth Entrance & Deletion Animations */
 .document-card-transition {
   transition: all 350ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tab-transition {
   transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  0% {
+    opacity: 0;
+    transform: translateX(-16px) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes shrinkOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.85) translateY(12px);
+  }
+}
+
+.animate-popIn {
+  animation: popIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-shrinkOut {
+  animation: shrinkOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 /* 6. Rocket Launcher & Premium Animations */
@@ -70,14 +115,9 @@ html, body {
   50% { transform: scaleY(1.4) scaleX(0.9); opacity: 1; filter: brightness(1.2) drop-shadow(0 0 10px rgba(249, 115, 22, 0.8)); }
 }
 
-@keyframes stars-drift {
-  0% { transform: translateY(-120%); }
-  100% { transform: translateY(120%); }
-}
-
-@keyframes smoke-drift {
-  0% { transform: scale(0.5) translateY(0); opacity: 0.7; }
-  100% { transform: scale(1.5) translateY(30px); opacity: 0; }
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
 .animate-rocket-rumble {
@@ -88,20 +128,6 @@ html, body {
   animation: flame-thrust 0.12s infinite ease-in-out;
 }
 
-.animate-stars-drift {
-  animation: stars-drift 3s infinite linear;
-}
-
-.animate-smoke-drift {
-  animation: smoke-drift 0.6s infinite ease-out;
-}
-
-/* Float Animation */
-@keyframes float-gentle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-
 .animate-float-gentle {
   animation: float-gentle 3s ease-in-out infinite;
-}
+}

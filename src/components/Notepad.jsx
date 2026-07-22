@@ -21,6 +21,35 @@ const Notepad = ({
   const [editingTabId, setEditingTabId] = useState(null);
   const [notification, setNotification] = useState(null);
 
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem("connect_autosave_enabled");
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch (e) {
+      return true;
+    }
+  });
+
+  const [textColor, setTextColor] = useState(() => {
+    try {
+      return localStorage.getItem("connect_note_text_color") || "default";
+    } catch (e) {
+      return "default";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("connect_autosave_enabled", JSON.stringify(autoSaveEnabled));
+    } catch (e) {}
+  }, [autoSaveEnabled]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("connect_note_text_color", textColor);
+    } catch (e) {}
+  }, [textColor]);
+
   // Helper to compute display title (auto-naming Note 1, Note 2 if title is blank)
   const getTabTitle = useCallback(
     (targetTab, allTabs, draftsMap) => {
@@ -197,6 +226,17 @@ const Notepad = ({
     onUpdate,
   ]);
 
+  // Debounced Auto Save when autoSaveEnabled is true
+  useEffect(() => {
+    if (!autoSaveEnabled || !isDirty || isSaving || !activeTabId) return;
+
+    const timer = setTimeout(() => {
+      handleSave();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [autoSaveEnabled, isDirty, isSaving, activeTabId, currentContent, currentTitle, handleSave]);
+
   // Intercept Ctrl+S / Cmd+S globally in Notepad
   useEffect(() => {
     const handleSaveShortcut = (e) => {
@@ -249,8 +289,8 @@ const Notepad = ({
 
   return (
     <div
-      className={`flex-1 flex flex-col h-full overflow-hidden transition-colors ${
-        isDarkMode ? "bg-slate-950 text-slate-100" : "bg-white text-slate-800"
+      className={`flex-1 flex flex-col h-full overflow-hidden p-4 sm:p-6 transition-colors ${
+        isDarkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-800"
       }`}
     >
       <ToastNotification
@@ -258,90 +298,104 @@ const Notepad = ({
         onClose={() => setNotification(null)}
       />
 
-      {/* TOP TAB BAR & SEARCH ROW */}
+      {/* Sleek Outer Container Card for Notepad (matching Image 2) */}
       <div
-        className={`px-4 pt-3 pb-1 border-b flex items-center justify-between gap-3 overflow-x-auto custom-scrollbar transition-colors ${
+        className={`flex-1 flex flex-col h-full overflow-hidden rounded-[2rem] border shadow-2xl transition-all ${
           isDarkMode
-            ? "bg-slate-900/60 border-slate-800/80"
-            : "bg-slate-100 border-slate-200"
+            ? "bg-[#070d18] border-slate-800/90 shadow-black/60"
+            : "bg-white border-slate-200 shadow-slate-200/80"
         }`}
       >
-        <div className="flex items-center gap-2 overflow-x-auto py-1 custom-scrollbar flex-1">
-          {filteredTabs.map((tab) => {
-            const isActive = tab.id === activeTabId;
-            const hasDraft = drafts[tab.id] !== undefined;
-            const displayTitle = getTabTitle(tab, tabs, drafts);
-            const isEditingInline = editingTabId === tab.id;
+        {/* TOP TAB BAR & SEARCH ROW */}
+        <div
+          className={`px-4 pt-3 pb-1 border-b flex items-center justify-between gap-3 overflow-x-auto custom-scrollbar transition-colors ${
+            isDarkMode
+              ? "bg-slate-900/50 border-slate-800/80"
+              : "bg-slate-100 border-slate-200"
+          }`}
+        >
+          <div className="flex items-center gap-2 overflow-x-auto py-1 custom-scrollbar flex-1">
+            {filteredTabs.map((tab) => {
+              const isActive = tab.id === activeTabId;
+              const hasDraft = drafts[tab.id] !== undefined;
+              const displayTitle = getTabTitle(tab, tabs, drafts);
+              const isEditingInline = editingTabId === tab.id;
 
-            return (
-              <NotepadTabItem
-                key={tab.id}
-                tab={tab}
-                isActive={isActive}
-                hasDraft={hasDraft}
-                displayTitle={displayTitle}
-                isEditingInline={isEditingInline}
-                onSelect={setActiveTabId}
-                onDelete={setDeletingTabId}
-                onStartInlineEdit={handleStartInlineEdit}
-                onSaveInlineEdit={handleSaveInlineEdit}
-                isDarkMode={isDarkMode}
-              />
-            );
-          })}
+              return (
+                <NotepadTabItem
+                  key={tab.id}
+                  tab={tab}
+                  isActive={isActive}
+                  hasDraft={hasDraft}
+                  displayTitle={displayTitle}
+                  isEditingInline={isEditingInline}
+                  onSelect={setActiveTabId}
+                  onDelete={setDeletingTabId}
+                  onStartInlineEdit={handleStartInlineEdit}
+                  onSaveInlineEdit={handleSaveInlineEdit}
+                  isDarkMode={isDarkMode}
+                />
+              );
+            })}
 
-          <button
-            type="button"
-            onClick={onAddTab}
-            className={`p-2 rounded-xl transition-all duration-200 cursor-pointer border ${
-              isDarkMode
-                ? "bg-slate-800/60 hover:bg-slate-800 text-slate-300 border-slate-700/60"
-                : "bg-white hover:bg-slate-200 text-slate-600 border-slate-300 shadow-sm"
-            }`}
-            title="Create New Note (Auto-names Note 1, Note 2 if empty)"
-          >
-            <Plus size={16} />
-          </button>
+            <button
+              type="button"
+              onClick={onAddTab}
+              className={`p-2 rounded-xl transition-all duration-200 cursor-pointer border ${
+                isDarkMode
+                  ? "bg-slate-800/60 hover:bg-slate-800 text-slate-300 border-slate-700/60"
+                  : "bg-white hover:bg-slate-200 text-slate-600 border-slate-300 shadow-sm"
+              }`}
+              title="Create New Note (Auto-names Note 1, Note 2 if empty)"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+
+          {/* Note Search Input */}
+          <div className="relative shrink-0 hidden sm:block w-48">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search notes..."
+              className={`w-full pl-8 pr-3 py-1.5 rounded-xl text-xs outline-none border transition ${
+                isDarkMode
+                  ? "bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-blue-500/50"
+                  : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-blue-600/50"
+              }`}
+            />
+          </div>
         </div>
 
-        {/* Note Search Input */}
-        <div className="relative shrink-0 hidden sm:block w-48">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search notes..."
-            className={`w-full pl-8 pr-3 py-1.5 rounded-xl text-xs outline-none border transition ${
-              isDarkMode
-                ? "bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-blue-500/50"
-                : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-blue-600/50"
-            }`}
-          />
-        </div>
+        {/* HEADER ACTION BAR */}
+        <NotepadActionBar
+          currentTitle={currentTitle}
+          isDirty={isDirty}
+          isSaving={isSaving}
+          activeNote={activeNote}
+          onTitleChange={handleTitleChange}
+          onSave={handleSave}
+          autoSaveEnabled={autoSaveEnabled}
+          onToggleAutoSave={() => setAutoSaveEnabled((prev) => !prev)}
+          textColor={textColor}
+          onTextColorChange={setTextColor}
+          isDarkMode={isDarkMode}
+        />
+
+        {/* TEXTAREA EDITOR BODY */}
+        <NotepadEditorBody
+          activeNote={activeNote}
+          currentContent={currentContent}
+          textColor={textColor}
+          isDarkMode={isDarkMode}
+          onContentChange={handleContentChange}
+        />
       </div>
-
-      {/* HEADER ACTION BAR */}
-      <NotepadActionBar
-        currentTitle={currentTitle}
-        isDirty={isDirty}
-        isSaving={isSaving}
-        activeNote={activeNote}
-        onTitleChange={handleTitleChange}
-        onSave={handleSave}
-        isDarkMode={isDarkMode}
-      />
-
-      {/* TEXTAREA EDITOR BODY */}
-      <NotepadEditorBody
-        activeNote={activeNote}
-        currentContent={currentContent}
-        isDarkMode={isDarkMode}
-        onContentChange={handleContentChange}
-      />
 
       {/* CONFIRM DELETE MODAL */}
       {deletingTabId && (
@@ -355,7 +409,7 @@ const Notepad = ({
               <button
                 type="button"
                 onClick={() => setDeletingTabId(null)}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -371,7 +425,7 @@ const Notepad = ({
                   });
                   await onDelete(id);
                 }}
-                className="flex-1 py-2.5 rounded-xl text-xs font-extrabold bg-red-600 hover:bg-red-550 text-white shadow-lg shadow-red-600/25 transition"
+                className="flex-1 py-2.5 rounded-xl text-xs font-extrabold bg-red-600 hover:bg-red-550 text-white shadow-lg shadow-red-600/25 transition cursor-pointer"
               >
                 Delete
               </button>

@@ -74,6 +74,22 @@ const Dashboard = () => {
     }
   }, [viewType]);
 
+  // Helper for localStorage pinned cache fallback
+  const getPinnedIds = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(`connect_pinned_${user?.id}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  }, [user]);
+
+  const savePinnedIds = useCallback((pinnedIds) => {
+    try {
+      localStorage.setItem(`connect_pinned_${user?.id}`, JSON.stringify(pinnedIds));
+    } catch (e) {}
+  }, [user]);
+
   // Fetch Items on user load & set up Real-time channel
   useEffect(() => {
     if (!user) return;
@@ -88,19 +104,25 @@ const Dashboard = () => {
       if (error) {
         console.error("Error fetching data:", error.message);
       } else {
+        const pinnedSet = new Set(getPinnedIds());
+        const processedData = (data || []).map((item) => ({
+          ...item,
+          is_pinned: item.is_pinned || pinnedSet.has(item.id),
+        }));
+
         setItems((prev) => {
           const tempItem = prev.find((i) => String(i.id).startsWith("temp-"));
           if (!tempItem) {
-            if (data?.length > 0) {
-              const firstNote = data.find((i) => i.type === "note");
+            if (processedData?.length > 0) {
+              const firstNote = processedData.find((i) => i.type === "note");
               if (firstNote) {
                 setActiveTabId((prevActive) => prevActive || firstNote.id);
               }
             }
-            return data || [];
+            return processedData;
           }
 
-          const newestNote = data.find((i) => i.type === "note");
+          const newestNote = processedData.find((i) => i.type === "note");
           if (newestNote) {
             const exists = prev.some((i) => i.id === newestNote.id);
             if (!exists) {
@@ -109,7 +131,7 @@ const Dashboard = () => {
             }
           }
 
-          return data || [];
+          return processedData;
         });
       }
     };
@@ -146,6 +168,11 @@ const Dashboard = () => {
       alert("Logout failed: " + e.message);
     }
   };
+
+  // Clear stale upload progress notifications when switching active workspace views
+  useEffect(() => {
+    setUploadProgress(null);
+  }, [viewType]);
 
   const generateAutoNoteTitle = useCallback((itemsList, currentId = null) => {
     const existingTitles = new Set(
@@ -408,6 +435,92 @@ const Dashboard = () => {
     }
   };
 
+  const createFolder = async (folderTitle, parentFolderId = null) => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from("items")
+        .insert([
+          {
+            title: folderTitle,
+            type: "folder",
+            user_id: user.id,
+            folder_id: parentFolderId || null,
+          },
+        ])
+        .select();
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setItems((prev) => [data[0], ...prev]);
+      }
+    } catch (e) {
+      alert("Error creating folder: " + e.message);
+    }
+  };
+
+  const togglePinItem = async (id, folderId = null) => {
+    const targetItem = items.find((i) => i.id === id);
+    if (!targetItem) return;
+
+    const currentlyPinned = !!targetItem.is_pinned;
+    const targetFolderId = folderId || targetItem.folder_id || null;
+
+    if (!currentlyPinned) {
+      if (targetFolderId) {
+        // Scoped inside a folder: Max 3 pinned items
+        const pinnedInFolder = items.filter(
+          (i) => i.folder_id === targetFolderId && i.is_pinned
+        ).length;
+
+        if (pinnedInFolder >= 3) {
+          setNotification({
+            type: "warning",
+            title: "Folder Pin Limit Reached",
+            message: "Maximum limit reached! You can pin up to 3 items inside a folder.",
+          });
+          return;
+        }
+      } else {
+        // Root level: Max 5 pinned items
+        const pinnedAtRoot = items.filter(
+          (i) => !i.folder_id && i.is_pinned
+        ).length;
+
+        if (pinnedAtRoot >= 5) {
+          setNotification({
+            type: "warning",
+            title: "Root Pin Limit Reached",
+            message: "Maximum limit reached! You can pin up to 5 items at root level.",
+          });
+          return;
+        }
+      }
+    }
+
+    const nextPinnedState = !currentlyPinned;
+
+    // Update local state & localStorage immediately
+    setItems((prev) => {
+      const updated = prev.map((i) =>
+        i.id === id ? { ...i, is_pinned: nextPinnedState } : i
+      );
+      const pinnedIds = updated.filter((i) => i.is_pinned).map((i) => i.id);
+      savePinnedIds(pinnedIds);
+      return updated;
+    });
+
+    // Save to Supabase DB if column is present, swallow error so pin never reverts
+    try {
+      await supabase
+        .from("items")
+        .update({ is_pinned: nextPinnedState })
+        .eq("id", id);
+    } catch (e) {
+      console.warn("Supabase is_pinned update notice:", e);
+    }
+  };
+
   const renameItem = useCallback(async (id, newTitle) => {
     let trimmedTitle = (newTitle || "").trim();
     const itemToRename = items.find((i) => i.id === id);
@@ -457,7 +570,7 @@ const Dashboard = () => {
     }
   }, [items, generateAutoNoteTitle, generateAutoDocTitle]);
 
-  const handleFileUpload = async (files, skipOversizedCheck = false) => {
+  const handleFileUpload = async (files, targetFolderId = null, skipOversizedCheck = false) => {
     const rawFileList = Array.isArray(files) ? files : [files];
     if (rawFileList.length === 0 || !user) return;
 
@@ -476,10 +589,17 @@ const Dashboard = () => {
       }
     }
 
-    // Filter out duplicates
+    // Filter out duplicates scoped to target destination (root vs specific folder)
     const existingDocTitles = new Set(
       items
-        .filter((i) => i.type !== "note" && i.type !== "link")
+        .filter((i) => {
+          if (i.type === "note" || i.type === "link") return false;
+          if (targetFolderId) {
+            return i.folder_id === targetFolderId;
+          } else {
+            return !i.folder_id;
+          }
+        })
         .map((i) => (i.title || "").toLowerCase())
     );
 
@@ -669,6 +789,7 @@ const Dashboard = () => {
             type: fileType,
             url: publicUrl,
             user_id: user.id,
+            folder_id: targetFolderId || null,
           },
         ]);
 
@@ -854,8 +975,11 @@ const Dashboard = () => {
           deleteItem={deleteItem}
           deleteMultipleItems={deleteMultipleItems}
           handleFileUpload={handleFileUpload}
+          onCreateFolder={createFolder}
+          onTogglePin={togglePinItem}
           handleCancelUpload={handleCancelUpload}
           handleCancelFile={handleCancelFile}
+          onCloseNotification={() => setUploadProgress(null)}
           uploadProgress={uploadProgress}
           renameItem={renameItem}
           addLinkItem={addLinkItem}

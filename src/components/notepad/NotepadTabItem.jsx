@@ -18,7 +18,7 @@ const NotepadTabItem = ({
 
   return (
     <div
-      className={`tab-transition flex items-center text-xs font-semibold cursor-pointer shrink-0 gap-2.5 px-4 py-2 border-t-2 rounded-xl max-w-[220px] ${
+      className={`tab-transition animate-slideInRight flex items-center text-xs font-semibold cursor-pointer shrink-0 gap-2.5 px-4 py-2 border-t-2 rounded-xl max-w-[220px] ${
         isActive
           ? isDarkMode
             ? "bg-slate-950 border-t-blue-500 text-white shadow-lg"

@@ -1,51 +1,48 @@
 import React from "react";
-import { CheckSquare, Square, Trash2 } from "lucide-react";
+import { CheckSquare, Square, Trash2, X } from "lucide-react";
 
 const SelectionBar = ({
-  totalItems,
-  selectedCount,
+  totalCount = 0,
+  selectedCount = 0,
   onSelectAll,
   onBatchDelete,
   onDeleteAll,
+  onCancel,
+  isDarkMode = true,
 }) => {
-  if (totalItems === 0) return null;
+  if (totalCount === 0) return null;
 
-  const isAllSelected = selectedCount > 0 && selectedCount === totalItems;
+  const isAllSelected = selectedCount > 0 && selectedCount === totalCount;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 mb-6 p-3.5 bg-slate-900/80 border border-blue-500/30 rounded-2xl backdrop-blur-md animate-fadeIn">
-      {/* Select All Toggle Button & Stats */}
-      <div className="flex items-center gap-3">
+    <div className="w-full bg-[#0b1329] border border-slate-800/90 p-4 px-6 rounded-2xl mb-6 flex flex-wrap items-center justify-between gap-4 shadow-2xl animate-fadeIn select-none">
+      {/* Left: Select All Checkbox & Count */}
+      <div className="flex items-center gap-4">
         <button
           type="button"
           onClick={onSelectAll}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-200 border cursor-pointer ${
-            isAllSelected
-              ? "bg-blue-600/20 border-blue-500 text-blue-400"
-              : "bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800"
-          }`}
+          className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
         >
           {isAllSelected ? (
             <CheckSquare size={16} className="text-blue-400" />
           ) : (
             <Square size={16} className="text-slate-400" />
           )}
-          <span>{isAllSelected ? "Deselect All" : "Select All"}</span>
+          <span>Select All</span>
         </button>
 
-        <span className="text-xs font-semibold text-slate-400">
-          <strong className="text-white">{selectedCount}</strong> of{" "}
-          <strong className="text-white">{totalItems}</strong> selected
+        <span className="text-xs font-bold text-slate-400">
+          <strong className="text-white font-extrabold">{selectedCount}</strong> of selected
         </span>
       </div>
 
-      {/* Batch Action Buttons */}
-      <div className="flex items-center gap-2.5">
+      {/* Right: Delete Selected & Delete All Action Buttons */}
+      <div className="flex items-center gap-3">
         {selectedCount > 0 && (
           <button
             type="button"
             onClick={onBatchDelete}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-600/20 border border-red-500/40 text-red-400 hover:bg-red-600 hover:text-white text-xs font-bold transition-all shadow-md shadow-red-600/10 active:scale-95 cursor-pointer"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-550 text-white text-xs font-extrabold shadow-lg shadow-red-600/30 active:scale-95 transition cursor-pointer"
           >
             <Trash2 size={15} />
             <span>Delete Selected ({selectedCount})</span>
@@ -55,15 +52,26 @@ const SelectionBar = ({
         <button
           type="button"
           onClick={onDeleteAll}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-950 border border-red-500/30 text-red-400 hover:bg-red-600/20 hover:text-red-300 text-xs font-bold transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800/90 hover:border-red-500/40 text-slate-300 hover:text-red-400 text-xs font-bold active:scale-95 transition cursor-pointer"
           title="Delete all documents"
         >
           <Trash2 size={15} />
           <span>Delete All</span>
         </button>
+
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            title="Exit select mode"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
-export default SelectionBar;
+export default React.memo(SelectionBar);
