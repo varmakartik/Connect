@@ -31,23 +31,37 @@
 
 <div align="center">
 
-  ### 🏠 Main Workspace & Top-Stacked Folders
-  <img src="docs/screenshots/dashboard.png" alt="Connect Dashboard & Top-Stacked Folders" width="850" />
+  ### Birth Of Connect 
+  <img width="1160" height="872" alt="Screenshot 2026-07-23 015207" src="https://github.com/user-attachments/assets/d5f12571-0573-4bf1-9eaa-ab72e1441f30" />
 
   <br/><br/>
+
+--------------------------------------------------------
+
+  ### 🏠 Main Workspace & Top-Stacked Folders
+  <img width="1877" height="902" alt="Screenshot 2026-07-23 014827" src="https://github.com/user-attachments/assets/5dc915a0-163f-4bbd-befc-05497afd7ce2" />
+
+<br/> <br/>
+
+----------------------------------------------------------
+
+  ### 🏠 Folders
+  <img width="1865" height="866" alt="Screenshot 2026-07-23 015127" src="https://github.com/user-attachments/assets/aa1c06d4-cf16-4f7f-85f9-da5cbd4b73a5" />
+
+  <br/><br/>
+
+  -------------------------------------------------------------------------------
 
   ### 📝 Real-Time Notepad & Mobile Text Color Palette
-  <img src="docs/screenshots/notepad.png" alt="Connect Notepad & Color Selection" width="850" />
+  <img width="1877" height="869" alt="Screenshot 2026-07-23 014909" src="https://github.com/user-attachments/assets/b6c80daf-2601-43ce-a970-656352245e27" />
 
-  <br/><br/>
-
-  ### 🎨 Interactive Whiteboard Canvas
-  <img src="docs/screenshots/canvas.png" alt="Connect Interactive Whiteboard Canvas" width="850" />
+-----------------------------------------------------
 
   <br/><br/>
 
   ### 🔗 Curated Link Vault
-  <img src="docs/screenshots/linkvault.png" alt="Connect Link Vault" width="850" />
+   <img width="1870" height="876" alt="Screenshot 2026-07-23 015019" src="https://github.com/user-attachments/assets/d120a57a-1f47-4801-a4b0-5363c413d0ce" />
+
 
 </div>
 
