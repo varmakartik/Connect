@@ -56,7 +56,13 @@ const CanvasToolbar = ({
 
         {/* Dynamic Filter Pills */}
         {onFilterChange && displayFilterOptions.length > 1 && (
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-950/60 border border-slate-800 shrink-0 ml-2">
+          <div
+            className={`flex items-center gap-1 p-1 rounded-xl border shrink-0 ml-2 ${
+              isDarkMode
+                ? "bg-slate-950/60 border-slate-800"
+                : "bg-slate-100 border-slate-200 shadow-inner"
+            }`}
+          >
             {displayFilterOptions.map((f) => {
               const isSelected = activeFilter === f.id;
               return (

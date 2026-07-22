@@ -268,7 +268,13 @@ const CanvasEditor = ({
       <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
         {/* BREADCRUMB NAVIGATION BAR WHEN INSIDE A FOLDER */}
         {activeFolderId && (
-          <div className="mb-6 flex items-center justify-between gap-4 bg-slate-900/60 p-3.5 px-5 rounded-2xl border border-slate-800 animate-fadeIn">
+          <div
+            className={`mb-6 flex items-center justify-between gap-4 p-3.5 px-5 rounded-2xl border animate-fadeIn transition-colors ${
+              isDarkMode
+                ? "bg-slate-900/60 border-slate-800 text-slate-200"
+                : "bg-white border-slate-200 shadow-sm text-slate-800"
+            }`}
+          >
             <div className="flex items-center gap-2 text-xs font-extrabold">
               <button
                 type="button"
@@ -276,12 +282,23 @@ const CanvasEditor = ({
                   setActiveFolderId(null);
                   setSearchQuery("");
                 }}
-                className="text-slate-400 hover:text-white transition cursor-pointer flex items-center gap-1 hover:underline"
+                className={`transition cursor-pointer flex items-center gap-1 hover:underline ${
+                  isDarkMode
+                    ? "text-slate-400 hover:text-white"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
               >
                 <span>Documents</span>
               </button>
-              <ChevronRight size={14} className="text-slate-600" />
-              <div className="flex items-center gap-1.5 text-amber-400">
+              <ChevronRight
+                size={14}
+                className={isDarkMode ? "text-slate-600" : "text-slate-400"}
+              />
+              <div
+                className={`flex items-center gap-1.5 ${
+                  isDarkMode ? "text-amber-400" : "text-amber-600 font-black"
+                }`}
+              >
                 <Folder size={15} />
                 <span>{activeFolder?.title || "Folder"}</span>
               </div>
@@ -293,7 +310,11 @@ const CanvasEditor = ({
                 setActiveFolderId(null);
                 setSearchQuery("");
               }}
-              className="py-1.5 px-3 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer flex items-center gap-1.5 shrink-0"
+              className={`py-1.5 px-3 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                isDarkMode
+                  ? "bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300"
+              }`}
             >
               <ArrowLeft size={14} />
               <span>Back to All Documents</span>
