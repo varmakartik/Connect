@@ -1,286 +1,386 @@
-import React, { useState } from "react";
-import { Plus, X, Save, Edit3, Sun, Moon } from "lucide-react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { Plus, Search } from "lucide-react";
+import ToastNotification from "./common/ToastNotification";
+import NotepadTabItem from "./notepad/NotepadTabItem";
+import NotepadActionBar from "./notepad/NotepadActionBar";
+import NotepadEditorBody from "./notepad/NotepadEditorBody";
 
-const Notepad = ({ tabs, activeTabId, setActiveTabId, onAddTab, onUpdate, onDelete }) => {
+const Notepad = ({
+  tabs = [],
+  activeTabId,
+  setActiveTabId,
+  onAddTab,
+  onUpdate,
+  onDelete,
+  isDarkMode = true,
+}) => {
   const [drafts, setDrafts] = useState({}); // maps noteId -> { content, title }
   const [isSaving, setIsSaving] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [deletingTabId, setDeletingTabId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingTabId, setEditingTabId] = useState(null);
+  const [notification, setNotification] = useState(null);
 
-  const activeNote = tabs.find((t) => t.id === activeTabId);
+  // Helper to compute display title (auto-naming Note 1, Note 2 if title is blank)
+  const getTabTitle = useCallback(
+    (targetTab, allTabs, draftsMap) => {
+      if (!targetTab) return "Note 1";
+      const targetDraft = draftsMap[targetTab.id];
+      const targetTitle = (
+        targetDraft !== undefined ? targetDraft.title : targetTab.title || ""
+      ).trim();
+      if (targetTitle) return targetTitle;
 
-  // Derive current values from draft or saved data
-  const currentContent = drafts[activeTabId] !== undefined 
-    ? drafts[activeTabId].content 
-    : (activeNote?.content || "");
+      const usedTitles = new Set();
+      for (const t of allTabs) {
+        if (t.id === targetTab.id) break;
+        const draft = draftsMap[t.id];
+        const explicitTitle = (
+          draft !== undefined ? draft.title : t.title || ""
+        ).trim();
+        if (explicitTitle) {
+          usedTitles.add(explicitTitle.toLowerCase());
+        } else {
+          let counter = 1;
+          while (usedTitles.has(`note ${counter}`)) {
+            counter++;
+          }
+          usedTitles.add(`note ${counter}`);
+        }
+      }
 
-  const currentTitle = drafts[activeTabId] !== undefined 
-    ? drafts[activeTabId].title 
-    : (activeNote?.title || "");
+      for (const t of allTabs) {
+        if (t.id === targetTab.id) continue;
+        const draft = draftsMap[t.id];
+        const explicitTitle = (
+          draft !== undefined ? draft.title : t.title || ""
+        ).trim();
+        if (explicitTitle) {
+          usedTitles.add(explicitTitle.toLowerCase());
+        }
+      }
+
+      let counter = 1;
+      while (usedTitles.has(`note ${counter}`)) {
+        counter++;
+      }
+      return `Note ${counter}`;
+    },
+    []
+  );
+
+  const filteredTabs = useMemo(() => {
+    return tabs.filter((t) => {
+      const noteTitle = getTabTitle(t, tabs, drafts);
+      const noteContent = drafts[t.id]?.content || t.content || "";
+      const q = searchQuery.toLowerCase();
+      return (
+        noteTitle.toLowerCase().includes(q) || noteContent.toLowerCase().includes(q)
+      );
+    });
+  }, [tabs, drafts, searchQuery, getTabTitle]);
+
+  const activeNote = useMemo(
+    () => tabs.find((t) => t.id === activeTabId),
+    [tabs, activeTabId]
+  );
+
+  const currentContent =
+    drafts[activeTabId] !== undefined
+      ? drafts[activeTabId].content
+      : activeNote?.content || "";
+
+  const currentTitle =
+    drafts[activeTabId] !== undefined
+      ? drafts[activeTabId].title
+      : activeNote?.title || "";
 
   const isDirty = drafts[activeTabId] !== undefined;
 
-  const handleContentChange = (val) => {
-    if (!activeNote) return;
-    const dbContent = activeNote.content || "";
-    const dbTitle = activeNote.title || "";
-    const activeDraft = drafts[activeTabId] || { title: dbTitle };
-
-    const isContentDifferent = val !== dbContent;
-    const isTitleDifferent = activeDraft.title !== dbTitle;
-
-    if (isContentDifferent || isTitleDifferent) {
-      setDrafts((prev) => ({
-        ...prev,
-        [activeTabId]: { content: val, title: activeDraft.title },
-      }));
-    } else {
-      setDrafts((prev) => {
-        const next = { ...prev };
-        delete next[activeTabId];
-        return next;
-      });
-    }
-  };
-
-  const handleTitleChange = (val) => {
-    if (!activeNote) return;
-    const dbContent = activeNote.content || "";
-    const dbTitle = activeNote.title || "";
-    const activeDraft = drafts[activeTabId] || { content: dbContent };
-
-    const isContentDifferent = activeDraft.content !== dbContent;
-    const isTitleDifferent = val !== dbTitle;
-
-    if (isContentDifferent || isTitleDifferent) {
-      setDrafts((prev) => ({
-        ...prev,
-        [activeTabId]: { content: activeDraft.content, title: val },
-      }));
-    } else {
-      setDrafts((prev) => {
-        const next = { ...prev };
-        delete next[activeTabId];
-        return next;
-      });
-    }
-  };
-
-  const handleManualSave = async () => {
-    if (!activeNote) return;
-    setIsSaving(true);
-    await onUpdate(activeNote.id, currentContent, currentTitle);
-    
-    // Clear local draft after successful sync
-    setDrafts((prev) => {
-      const next = { ...prev };
-      delete next[activeTabId];
-      return next;
-    });
-    setIsSaving(false);
-  };
-
-  const handleDeleteTab = (tabId) => {
-    setDeletingTabId(tabId);
-    setTimeout(() => {
-      setDrafts((prev) => {
-        const next = { ...prev };
-        delete next[tabId];
-        return next;
-      });
-      onDelete(tabId);
-      setDeletingTabId(null);
-    }, 300);
-  };
-
-  // Debounced auto-save effect to sync notes automatically
-  React.useEffect(() => {
-    if (!activeTabId || !drafts[activeTabId]) return;
-
-    const timer = setTimeout(async () => {
-      const draft = drafts[activeTabId];
-      if (!draft) return;
-
-      setIsSaving(true);
-      try {
-        await onUpdate(activeTabId, draft.content, draft.title);
-        // Clear this draft on successful sync
-        setDrafts((prev) => {
-          const next = { ...prev };
-          delete next[activeTabId];
-          return next;
-        });
-      } catch (e) {
-        console.warn("Auto-save sync failed, retrying on next keystroke:", e);
-      } finally {
-        setIsSaving(false);
+  // Prevent inspect element & DevTools shortcuts inside Notepad
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (
+        e.key === "F12" ||
+        (e.ctrlKey &&
+          e.shiftKey &&
+          (e.key === "I" ||
+            e.key === "i" ||
+            e.key === "J" ||
+            e.key === "j" ||
+            e.key === "C" ||
+            e.key === "c")) ||
+        (e.ctrlKey && (e.key === "u" || e.key === "U"))
+      ) {
+        e.preventDefault();
+        return false;
       }
-    }, 1500);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
-    return () => clearTimeout(timer);
-  }, [drafts, activeTabId, onUpdate]);
+  const handleContentChange = useCallback(
+    (newContent) => {
+      if (!activeTabId) return;
+      setDrafts((prev) => ({
+        ...prev,
+        [activeTabId]: {
+          content: newContent,
+          title: currentTitle,
+        },
+      }));
+    },
+    [activeTabId, currentTitle]
+  );
+
+  const handleTitleChange = useCallback(
+    (newTitle) => {
+      if (!activeTabId) return;
+      setDrafts((prev) => ({
+        ...prev,
+        [activeTabId]: {
+          content: currentContent,
+          title: newTitle,
+        },
+      }));
+    },
+    [activeTabId, currentContent]
+  );
+
+  const handleSave = useCallback(async () => {
+    if (!activeTabId || !isDirty || isSaving) return;
+    setIsSaving(true);
+
+    let finalTitle = (currentTitle || "").trim();
+    if (!finalTitle) {
+      finalTitle = getTabTitle(activeNote, tabs, drafts);
+    } else {
+      const isDuplicate = tabs.some(
+        (t) =>
+          t.id !== activeTabId &&
+          (t.title || "").trim().toLowerCase() === finalTitle.toLowerCase()
+      );
+      if (isDuplicate) {
+        setNotification({
+          type: "warning",
+          title: "Duplicate Note Title",
+          message: `A note titled "${finalTitle}" already exists! Please give it a unique name.`,
+        });
+        setIsSaving(false);
+        return;
+      }
+    }
+
+    try {
+      await onUpdate(activeTabId, currentContent, finalTitle);
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[activeTabId];
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to save note:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    activeTabId,
+    isDirty,
+    isSaving,
+    currentTitle,
+    currentContent,
+    activeNote,
+    tabs,
+    drafts,
+    getTabTitle,
+    onUpdate,
+  ]);
+
+  // Intercept Ctrl+S / Cmd+S globally in Notepad
+  useEffect(() => {
+    const handleSaveShortcut = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener("keydown", handleSaveShortcut);
+    return () => window.removeEventListener("keydown", handleSaveShortcut);
+  }, [handleSave]);
+
+  const handleStartInlineEdit = useCallback((tab) => {
+    setEditingTabId(tab.id);
+  }, []);
+
+  const handleSaveInlineEdit = useCallback(
+    async (tabId, rawTitle) => {
+      setEditingTabId(null);
+      let trimmed = rawTitle.trim();
+      const targetTab = tabs.find((t) => t.id === tabId);
+      if (!targetTab) return;
+
+      if (!trimmed) {
+        trimmed = getTabTitle(targetTab, tabs, drafts);
+      } else {
+        const isDuplicate = tabs.some(
+          (t) =>
+            t.id !== tabId &&
+            (t.title || "").trim().toLowerCase() === trimmed.toLowerCase()
+        );
+        if (isDuplicate) {
+          setNotification({
+            type: "warning",
+            title: "Duplicate Note Title",
+            message: `A note titled "${trimmed}" already exists! Please choose a unique title.`,
+          });
+          return;
+        }
+      }
+
+      const noteContent =
+        drafts[tabId] !== undefined
+          ? drafts[tabId].content
+          : targetTab.content || "";
+      await onUpdate(tabId, noteContent, trimmed);
+    },
+    [tabs, drafts, getTabTitle, onUpdate]
+  );
 
   return (
     <div
-      className={`flex flex-col h-full transition-colors duration-300 ${
-        isDarkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"
+      className={`flex-1 flex flex-col h-full overflow-hidden transition-colors ${
+        isDarkMode ? "bg-slate-950 text-slate-100" : "bg-white text-slate-800"
       }`}
     >
-      {/* Tabs Row - Mobile Scrollable */}
-      <div
-        className={`flex items-center gap-1.5 p-2.5 border-b transition-colors ${
-          isDarkMode ? "bg-slate-900/60 border-slate-800/80" : "bg-slate-200/50 border-slate-300"
-        } overflow-x-auto no-scrollbar`}
-      >
-        {tabs.map((tab) => {
-          const tabDraft = drafts[tab.id];
-          const hasDraft = tabDraft !== undefined;
-          const displayTitle = tabDraft ? tabDraft.title : (tab.title || "Untitled");
-          const isActive = activeTabId === tab.id;
-          const isDeleting = deletingTabId === tab.id;
+      <ToastNotification
+        notification={notification}
+        onClose={() => setNotification(null)}
+      />
 
-          return (
-            <div
-              key={tab.id}
-              className={`tab-transition flex items-center text-xs font-semibold cursor-pointer shrink-0 ${
-                isDeleting
-                  ? "scale-90 opacity-0 max-w-0 px-0 mx-0 border-t-transparent overflow-hidden pointer-events-none"
-                  : `gap-2.5 px-4 py-2 border-t-2 rounded-xl max-w-[200px] ${
-                      isActive
-                        ? isDarkMode
-                          ? "bg-slate-950 border-t-blue-500 text-white shadow-lg"
-                          : "bg-white border-t-blue-600 text-blue-600 shadow-md shadow-slate-200"
-                        : isDarkMode
-                        ? "bg-slate-900/30 border-t-transparent text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
-                        : "bg-slate-200/30 border-t-transparent text-slate-500 hover:bg-slate-200/80 hover:text-slate-700"
-                    }`
-              }`}
-              onClick={() => !isDeleting && setActiveTabId(tab.id)}
-            >
-              {!isDeleting && (
-                <>
-                  <span className="max-w-[100px] truncate">{displayTitle}</span>
-                  <span
-                    className={`w-2 h-2 rounded-full shrink-0 transition-colors duration-250 ${
-                      hasDraft ? "bg-amber-500 animate-pulse" : "bg-emerald-500 shadow-sm"
-                    }`}
-                    title={hasDraft ? "Unsaved changes" : "Saved"}
-                  />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteTab(tab.id);
-                    }}
-                    className="hover:text-red-500 text-slate-400 transition-colors ml-1 p-0.5 rounded-md hover:bg-slate-805"
-                  >
-                    <X size={12} />
-                  </button>
-                </>
-              )}
-            </div>
-          );
-        })}
-        <button
-          onClick={onAddTab}
-          className={`p-2 rounded-xl transition shrink-0 ${
-            isDarkMode
-              ? "hover:bg-slate-850 text-slate-400 hover:text-white bg-slate-900/20"
-              : "hover:bg-slate-250 text-slate-500 hover:text-slate-700 bg-slate-200/50"
-          }`}
-        >
-          <Plus size={16} />
-        </button>
-      </div>
-
-      {/* Action Bar - Mobile-optimized layout */}
+      {/* TOP TAB BAR & SEARCH ROW */}
       <div
-        className={`px-4 py-3 flex flex-wrap items-center justify-between border-b gap-3 transition-colors ${
-          isDarkMode ? "bg-slate-950 border-slate-800/80" : "bg-white border-slate-200"
+        className={`px-4 pt-3 pb-1 border-b flex items-center justify-between gap-3 overflow-x-auto custom-scrollbar transition-colors ${
+          isDarkMode
+            ? "bg-slate-900/60 border-slate-800/80"
+            : "bg-slate-100 border-slate-200"
         }`}
       >
-        <div className="flex items-center gap-3 flex-1 min-w-[240px]">
-          {/* Theme Toggle */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`p-2 rounded-xl border transition-all duration-200 ${
-                isDarkMode
-                  ? "bg-slate-900 border-slate-850 text-yellow-400 hover:bg-slate-805"
-                  : "bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-150"
-              }`}
-              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-          </div>
+        <div className="flex items-center gap-2 overflow-x-auto py-1 custom-scrollbar flex-1">
+          {filteredTabs.map((tab) => {
+            const isActive = tab.id === activeTabId;
+            const hasDraft = drafts[tab.id] !== undefined;
+            const displayTitle = getTabTitle(tab, tabs, drafts);
+            const isEditingInline = editingTabId === tab.id;
 
-          {/* Title Input */}
-          <input
-            type="text"
-            className={`rounded-xl px-4 py-2 text-sm font-bold outline-none transition-all duration-200 flex-1 min-w-[150px] border ${
-              isDarkMode
-                ? "bg-slate-900 border-slate-800/80 text-white focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10"
-                : "bg-slate-50 border-slate-200 text-slate-800 focus:border-blue-600/50 focus:ring-2 focus:ring-blue-600/10"
-            }`}
-            value={currentTitle}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            placeholder="Tab Name..."
-            disabled={!activeNote}
-          />
-        </div>
-
-        {/* Save Status & Button */}
-        <div className="flex items-center gap-4 shrink-0">
-          {activeNote && (
-            <div className="flex items-center gap-1.5 text-xs font-semibold select-none">
-              <span
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  isDirty ? "bg-amber-500 animate-pulse" : "bg-emerald-500 shadow-md shadow-emerald-500/25"
-                }`}
+            return (
+              <NotepadTabItem
+                key={tab.id}
+                tab={tab}
+                isActive={isActive}
+                hasDraft={hasDraft}
+                displayTitle={displayTitle}
+                isEditingInline={isEditingInline}
+                onSelect={setActiveTabId}
+                onDelete={setDeletingTabId}
+                onStartInlineEdit={handleStartInlineEdit}
+                onSaveInlineEdit={handleSaveInlineEdit}
+                isDarkMode={isDarkMode}
               />
-              <span className={isDarkMode ? "text-slate-400" : "text-slate-500"}>
-                {isDirty ? "Unsaved changes" : "Synced"}
-              </span>
-            </div>
-          )}
+            );
+          })}
+
           <button
-            onClick={handleManualSave}
-            disabled={!activeNote}
-            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 active:scale-[0.98] shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
+            type="button"
+            onClick={onAddTab}
+            className={`p-2 rounded-xl transition-all duration-200 cursor-pointer border ${
               isDarkMode
-                ? "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/15"
-                : "bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-600/15"
+                ? "bg-slate-800/60 hover:bg-slate-800 text-slate-300 border-slate-700/60"
+                : "bg-white hover:bg-slate-200 text-slate-600 border-slate-300 shadow-sm"
             }`}
+            title="Create New Note (Auto-names Note 1, Note 2 if empty)"
           >
-            <Save size={16} />
-            <span>{isSaving ? "Syncing..." : "Save Sync"}</span>
+            <Plus size={16} />
           </button>
         </div>
+
+        {/* Note Search Input */}
+        <div className="relative shrink-0 hidden sm:block w-48">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search notes..."
+            className={`w-full pl-8 pr-3 py-1.5 rounded-xl text-xs outline-none border transition ${
+              isDarkMode
+                ? "bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-blue-500/50"
+                : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-blue-600/50"
+            }`}
+          />
+        </div>
       </div>
 
-      {/* Editor Area */}
-      <div className="flex-1 p-4 md:p-6 overflow-hidden">
-        {activeNote ? (
-          <textarea
-            className={`w-full h-full p-6 md:p-8 border rounded-2xl outline-none resize-none leading-relaxed transition-all duration-300 focus:ring-2 focus:ring-blue-500/10 ${
-              isDarkMode
-                ? "bg-slate-900/40 border-slate-800/80 text-slate-300 font-mono text-sm focus:border-slate-700/80"
-                : "bg-white border-slate-200 text-slate-700 font-sans text-base focus:border-slate-350 shadow-inner"
-            }`}
-            value={currentContent}
-            onChange={(e) => handleContentChange(e.target.value)}
-            placeholder="Type your notes here..."
-            spellCheck={false}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full opacity-40 text-slate-500">
-            <Edit3 size={48} className="mb-3 animate-bounce" />
-            <p className="font-semibold text-sm">Select a note or create one to start editing</p>
+      {/* HEADER ACTION BAR */}
+      <NotepadActionBar
+        currentTitle={currentTitle}
+        isDirty={isDirty}
+        isSaving={isSaving}
+        activeNote={activeNote}
+        onTitleChange={handleTitleChange}
+        onSave={handleSave}
+        isDarkMode={isDarkMode}
+      />
+
+      {/* TEXTAREA EDITOR BODY */}
+      <NotepadEditorBody
+        activeNote={activeNote}
+        currentContent={currentContent}
+        isDarkMode={isDarkMode}
+        onContentChange={handleContentChange}
+      />
+
+      {/* CONFIRM DELETE MODAL */}
+      {deletingTabId && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
+            <h3 className="text-base font-bold text-white mb-2">Delete Note Tab?</h3>
+            <p className="text-xs text-slate-400 mb-6">
+              Are you sure you want to delete this note tab? Unsaved changes will be lost.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setDeletingTabId(null)}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const id = deletingTabId;
+                  setDeletingTabId(null);
+                  setDrafts((prev) => {
+                    const next = { ...prev };
+                    delete next[id];
+                    return next;
+                  });
+                  await onDelete(id);
+                }}
+                className="flex-1 py-2.5 rounded-xl text-xs font-extrabold bg-red-600 hover:bg-red-550 text-white shadow-lg shadow-red-600/25 transition"
+              >
+                Delete
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default Notepad;
+export default React.memo(Notepad);

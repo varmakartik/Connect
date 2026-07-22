@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import Sidebar from "../components/Sidebar";
-import Notepad from "../components/Notepad";
-import CanvasEditor from "../components/CanvasEditor";
-import OurStory from "../components/OurStory";
-import { Menu } from "lucide-react";
+import MobileTopBar from "../components/dashboard/MobileTopBar";
+import DashboardModals from "../components/dashboard/DashboardModals";
+import WorkspaceView from "../components/dashboard/WorkspaceView";
 
 const Dashboard = () => {
   const { user } = useOutletContext();
@@ -14,8 +13,18 @@ const Dashboard = () => {
   const [items, setItems] = useState([]);
   const [viewType, setViewType] = useState("notes");
   const [activeTabId, setActiveTabId] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState({
+    active: false,
+    overall: 0,
+    files: [],
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [notification, setNotification] = useState(null);
+  const [oversizedModalData, setOversizedModalData] = useState(null);
+  const isUploadCancelledRef = useRef(false);
+  const cancelledFileNamesRef = useRef(new Set());
 
   // Load user-scoped cache immediately on user session resolution
   useEffect(() => {
@@ -53,6 +62,9 @@ const Dashboard = () => {
         break;
       case "canvas":
         document.title = "Documents - Connect";
+        break;
+      case "links":
+        document.title = "Saved Links - Connect";
         break;
       case "story":
         document.title = "Behind the Spark ✨ - Connect";
@@ -135,11 +147,39 @@ const Dashboard = () => {
     }
   };
 
-  const addNewTab = async () => {
+  const generateAutoNoteTitle = useCallback((itemsList, currentId = null) => {
+    const existingTitles = new Set(
+      itemsList
+        .filter((i) => i.type === "note" && i.id !== currentId)
+        .map((i) => (i.title || "").toLowerCase().trim())
+    );
+    let num = 1;
+    while (existingTitles.has(`note ${num}`) || existingTitles.has(`note${num}`)) {
+      num++;
+    }
+    return `Note ${num}`;
+  }, []);
+
+  const generateAutoDocTitle = useCallback((itemsList, currentId = null) => {
+    const existingTitles = new Set(
+      itemsList
+        .filter((i) => i.type !== "note" && i.type !== "link" && i.id !== currentId)
+        .map((i) => (i.title || "").toLowerCase().trim())
+    );
+    let num = 1;
+    while (existingTitles.has(`doc ${num}`) || existingTitles.has(`doc${num}`)) {
+      num++;
+    }
+    return `Doc ${num}`;
+  }, []);
+
+  const addNewTab = useCallback(async () => {
+    const noteTitle = generateAutoNoteTitle(items);
+
     const tempId = `temp-${Date.now()}`;
     const newNote = {
       id: tempId,
-      title: "New Note",
+      title: noteTitle,
       content: "",
       type: "note",
       user_id: user.id,
@@ -159,7 +199,7 @@ const Dashboard = () => {
         .from("items")
         .insert([
           {
-            title: "New Note",
+            title: noteTitle,
             content: "",
             type: "note",
             user_id: user.id,
@@ -181,23 +221,45 @@ const Dashboard = () => {
       setActiveTabId(backupActiveTabId);
       alert("Error creating note: " + e.message);
     }
-  };
+  }, [items, activeTabId, user, generateAutoNoteTitle]);
 
   const updateNoteContent = async (id, newContent, newTitle) => {
+    let trimmedTitle = (newTitle || "").trim();
+
+    if (!trimmedTitle) {
+      trimmedTitle = generateAutoNoteTitle(items, id);
+    } else {
+      const isDuplicate = items.some(
+        (i) =>
+          i.id !== id &&
+          i.type === "note" &&
+          (i.title || "").trim().toLowerCase() === trimmedTitle.toLowerCase()
+      );
+
+      if (isDuplicate) {
+        setNotification({
+          type: "warning",
+          title: "Duplicate Note Title",
+          message: `A note titled "${trimmedTitle}" already exists! Please choose a unique title.`,
+        });
+        return;
+      }
+    }
+
     const backupItems = [...items];
     try {
       // Optimistic update
       setItems((prev) =>
         prev.map((item) =>
           item.id === id
-            ? { ...item, content: newContent, title: newTitle }
+            ? { ...item, content: newContent, title: trimmedTitle }
             : item
         )
       );
 
       const { error } = await supabase
         .from("items")
-        .update({ content: newContent, title: newTitle })
+        .update({ content: newContent, title: trimmedTitle })
         .eq("id", id);
 
       if (error) throw error;
@@ -247,19 +309,144 @@ const Dashboard = () => {
     }
   };
 
-  const renameItem = async (id, newTitle) => {
+  const deleteMultipleItems = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    const idSet = new Set(ids);
+    const itemsToDelete = items.filter((item) => idSet.has(item.id));
+    if (itemsToDelete.length === 0) return;
+
+    const backupItems = [...items];
+    const backupActiveTabId = activeTabId;
+
+    try {
+      // Optimistic delete
+      setItems((prev) => prev.filter((item) => !idSet.has(item.id)));
+      if (idSet.has(activeTabId)) setActiveTabId(null);
+
+      // Batch delete from DB
+      const { error: dbError } = await supabase
+        .from("items")
+        .delete()
+        .in("id", ids);
+      if (dbError) throw dbError;
+
+      // Collect storage paths
+      const storagePaths = itemsToDelete
+        .filter((item) => item.type !== "note" && item.url)
+        .map((item) => getStoragePathFromUrl(item.url))
+        .filter(Boolean);
+
+      if (storagePaths.length > 0) {
+        await supabase.storage.from("documents").remove(storagePaths);
+      }
+    } catch (e) {
+      // Rollback on error
+      setItems(backupItems);
+      setActiveTabId(backupActiveTabId);
+      alert("Batch delete failed: " + e.message);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setShowDeleteAccountModal(false);
+
+    try {
+      // 1. Delete all database items belonging to this user
+      const { error: dbError } = await supabase
+        .from("items")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (dbError) console.warn("DB purge error:", dbError.message);
+
+      // 2. Delete storage files
+      try {
+        const { data: fileList } = await supabase.storage
+          .from("documents")
+          .list(user.id);
+        if (fileList && fileList.length > 0) {
+          const filePaths = fileList.map((f) => `${user.id}/${f.name}`);
+          await supabase.storage.from("documents").remove(filePaths);
+        }
+      } catch (stErr) {
+        console.warn("Storage purge error:", stErr);
+      }
+
+      // 3. Clear localStorage cache
+      localStorage.removeItem(`connect_items_${user.id}`);
+
+      // 4. Sign out auth session & navigate to login
+      await supabase.auth.signOut();
+      navigate("/login", { replace: true });
+    } catch (e) {
+      alert("Account deletion failed: " + e.message);
+    }
+  };
+
+  const addLinkItem = async (title, url) => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from("items")
+        .insert([
+          {
+            title,
+            url,
+            type: "link",
+            user_id: user.id,
+          },
+        ])
+        .select();
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setItems((prev) => [data[0], ...prev]);
+      }
+    } catch (e) {
+      alert("Error saving link: " + e.message);
+    }
+  };
+
+  const renameItem = useCallback(async (id, newTitle) => {
+    let trimmedTitle = (newTitle || "").trim();
+    const itemToRename = items.find((i) => i.id === id);
+
+    if (!trimmedTitle) {
+      if (itemToRename?.type === "note") {
+        trimmedTitle = generateAutoNoteTitle(items, id);
+      } else {
+        trimmedTitle = generateAutoDocTitle(items, id);
+      }
+    } else {
+      const isDuplicate = items.some(
+        (i) =>
+          i.id !== id &&
+          (i.title || "").trim().toLowerCase() === trimmedTitle.toLowerCase()
+      );
+
+      if (isDuplicate) {
+        setNotification({
+          type: "warning",
+          title: "Duplicate Name",
+          message: `An item named "${trimmedTitle}" already exists! Please choose a unique name.`,
+        });
+        return;
+      }
+    }
+
     const backupItems = [...items];
     try {
       // Optimistic update
       setItems((prev) =>
         prev.map((item) =>
-          item.id === id ? { ...item, title: newTitle } : item
+          item.id === id ? { ...item, title: trimmedTitle } : item
         )
       );
 
       const { error } = await supabase
         .from("items")
-        .update({ title: newTitle })
+        .update({ title: trimmedTitle })
         .eq("id", id);
 
       if (error) throw error;
@@ -268,53 +455,355 @@ const Dashboard = () => {
       setItems(backupItems);
       alert("Rename failed: " + e.message);
     }
-  };
+  }, [items, generateAutoNoteTitle, generateAutoDocTitle]);
 
-  const handleFileUpload = async (file) => {
-    if (!file || !user) return;
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+  const handleFileUpload = async (files, skipOversizedCheck = false) => {
+    const rawFileList = Array.isArray(files) ? files : [files];
+    if (rawFileList.length === 0 || !user) return;
 
-    try {
-      setUploadProgress(20);
-      const { error: uploadError } = await supabase.storage
-        .from("documents")
-        .upload(fileName, file);
+    const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
-      if (uploadError) throw uploadError;
+    if (!skipOversizedCheck) {
+      const oversizedFiles = rawFileList.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
+      const validSizeFiles = rawFileList.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
 
-      setUploadProgress(70);
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("documents").getPublicUrl(fileName);
+      if (oversizedFiles.length > 0) {
+        setOversizedModalData({
+          oversizedFiles,
+          validSizeFiles,
+        });
+        return;
+      }
+    }
 
-      let fileType = "doc";
-      if (file.type.includes("pdf")) {
-        fileType = "pdf";
-      } else if (file.type.includes("image")) {
-        fileType = "image";
+    // Filter out duplicates
+    const existingDocTitles = new Set(
+      items
+        .filter((i) => i.type !== "note" && i.type !== "link")
+        .map((i) => (i.title || "").toLowerCase())
+    );
+
+    const fileList = [];
+    const duplicateNames = [];
+
+    for (const f of rawFileList) {
+      const docTitle = (f.relativePath || f.name).toLowerCase();
+      if (existingDocTitles.has(docTitle)) {
+        duplicateNames.push(f.name);
+      } else {
+        fileList.push(f);
+        existingDocTitles.add(docTitle);
+      }
+    }
+
+    if (duplicateNames.length > 0) {
+      setNotification({
+        type: "warning",
+        title: "Duplicate Files Skipped",
+        message: `${duplicateNames.length} file(s) (${duplicateNames.slice(0, 3).join(", ")}) already exist in your documents and were skipped.`,
+      });
+    }
+
+    if (fileList.length === 0) return;
+
+    isUploadCancelledRef.current = false;
+    cancelledFileNamesRef.current = new Set();
+
+    // Initialize progress tracking state for each file
+    const initialFilesState = fileList.map((f) => ({
+      name: f.name,
+      progress: 0,
+      status: "waiting",
+      error: null,
+      size: f.size,
+      uploadedBytes: 0,
+    }));
+
+    setUploadProgress({
+      active: true,
+      overall: 0,
+      files: initialFilesState,
+    });
+
+    const totalBytes = fileList.reduce((acc, f) => acc + f.size, 0);
+    const uploadBatchTimestamp = Date.now();
+
+    // Helper to dynamically update individual file status and recalculate aggregate progress
+    const updateFileProgress = (index, updates) => {
+      setUploadProgress((prev) => {
+        if (!prev) return prev;
+        const nextFiles = [...prev.files];
+        nextFiles[index] = { ...nextFiles[index], ...updates };
+
+        const allTerminal = nextFiles.every(
+          (f) =>
+            f.status === "success" ||
+            f.status === "error" ||
+            f.status === "cancelled"
+        );
+
+        // Accumulate overall uploaded bytes weighted by file size
+        const totalUploaded = nextFiles.reduce(
+          (acc, f) =>
+            acc + (f.status === "cancelled" ? f.size : f.uploadedBytes || 0),
+          0
+        );
+        const overall = allTerminal
+          ? 100
+          : totalBytes > 0
+          ? Math.round((totalUploaded / totalBytes) * 100)
+          : 0;
+
+        if (allTerminal) {
+          setTimeout(() => {
+            setUploadProgress((current) =>
+              current ? { ...current, active: false } : current
+            );
+          }, 1800);
+        }
+
+        return {
+          active: true,
+          overall: Math.min(100, overall),
+          files: nextFiles,
+        };
+      });
+    };
+
+    const concurrencyLimit = 3;
+    let nextIndex = 0;
+    let activeUploads = 0;
+
+    const runUpload = async (index) => {
+      const file = fileList[index];
+      if (
+        isUploadCancelledRef.current ||
+        cancelledFileNamesRef.current.has(file.name)
+      ) {
+        return;
+      }
+      const relativePath = file.relativePath || file.name;
+      // Prepend user id and a shared batch timestamp directory to preserve folder shapes uniquely
+      const fileName = `${user.id}/${uploadBatchTimestamp}/${relativePath}`;
+
+      updateFileProgress(index, { status: "uploading", progress: 0 });
+
+      let progressInterval;
+      try {
+        // Stepped mock animation for Supabase uploads
+        progressInterval = setInterval(() => {
+          if (
+            isUploadCancelledRef.current ||
+            cancelledFileNamesRef.current.has(file.name)
+          ) {
+            clearInterval(progressInterval);
+            return;
+          }
+          setUploadProgress((prev) => {
+            if (!prev) return prev;
+            const currentVal = prev.files[index]?.progress || 0;
+            if (currentVal < 85) {
+              const step = Math.min(
+                85,
+                currentVal + Math.floor(Math.random() * 15) + 5
+              );
+              const bytes = Math.round((step / 100) * file.size);
+              const nextFiles = [...prev.files];
+              nextFiles[index] = {
+                ...nextFiles[index],
+                progress: step,
+                uploadedBytes: bytes,
+              };
+
+              const totalUploaded = nextFiles.reduce(
+                (acc, f) => acc + (f.uploadedBytes || 0),
+                0
+              );
+              const overall =
+                totalBytes > 0
+                  ? Math.round((totalUploaded / totalBytes) * 100)
+                  : 0;
+
+              return {
+                active: true,
+                overall: Math.min(100, overall),
+                files: nextFiles,
+              };
+            }
+            return prev;
+          });
+        }, 200);
+
+        const { error: uploadError } = await supabase.storage
+          .from("documents")
+          .upload(fileName, file);
+
+        clearInterval(progressInterval);
+
+        if (
+          isUploadCancelledRef.current ||
+          cancelledFileNamesRef.current.has(file.name)
+        ) {
+          return;
+        }
+
+        if (uploadError) throw uploadError;
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("documents").getPublicUrl(fileName);
+
+        let fileType = "doc";
+        if (file.type.includes("pdf")) {
+          fileType = "pdf";
+        } else if (
+          file.type.includes("image") ||
+          /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name)
+        ) {
+          fileType = "image";
+        }
+
+        const { error: dbError } = await supabase.from("items").insert([
+          {
+            title: file.name,
+            type: fileType,
+            url: publicUrl,
+            user_id: user.id,
+          },
+        ]);
+
+        if (dbError) throw dbError;
+
+        updateFileProgress(index, {
+          status: "success",
+          progress: 100,
+          uploadedBytes: file.size,
+        });
+      } catch (error) {
+        if (progressInterval) clearInterval(progressInterval);
+        console.error("File upload error:", file.name, error);
+        updateFileProgress(index, {
+          status: "error",
+          error: error.message || "Upload failed",
+          uploadedBytes: 0,
+        });
+      }
+    };
+
+    const runNext = async () => {
+      if (isUploadCancelledRef.current) return;
+
+      if (nextIndex >= fileList.length) {
+        if (activeUploads === 0) {
+          setUploadProgress((prev) =>
+            prev ? { ...prev, overall: 100 } : prev
+          );
+          // Finish and close console after 1.8s delay
+          setTimeout(() => {
+            setUploadProgress((prev) =>
+              prev ? { ...prev, active: false } : prev
+            );
+          }, 1800);
+        }
+        return;
       }
 
-      const { error: dbError } = await supabase.from("items").insert([
-        {
-          title: file.name,
-          type: fileType,
-          url: publicUrl,
-          user_id: user.id,
-        },
-      ]);
+      const currentIndex = nextIndex++;
+      activeUploads++;
 
-      if (dbError) throw dbError;
-      setUploadProgress(100);
-      setTimeout(() => setUploadProgress(0), 1000);
-    } catch (error) {
-      alert("Upload error: " + error.message);
-      setUploadProgress(0);
+      await runUpload(currentIndex);
+
+      activeUploads--;
+      runNext();
+    };
+
+    // Spawn up to concurrencyLimit upload workers
+    const batchPromises = [];
+    for (let i = 0; i < Math.min(concurrencyLimit, fileList.length); i++) {
+      batchPromises.push(runNext());
     }
+    await Promise.all(batchPromises);
+  };
+
+  const handleCancelUpload = () => {
+    isUploadCancelledRef.current = true;
+    setUploadProgress((prev) => {
+      if (!prev) return prev;
+      const nextFiles = prev.files.map((f) =>
+        f.status === "waiting" || f.status === "uploading"
+          ? { ...f, status: "cancelled" }
+          : f
+      );
+      return {
+        ...prev,
+        cancelled: true,
+        files: nextFiles,
+      };
+    });
+
+    setNotification({
+      type: "info",
+      title: "Upload Cancelled",
+      message: "Folder / file upload batch was cancelled.",
+    });
+
+    setTimeout(() => {
+      setUploadProgress((prev) => (prev ? { ...prev, active: false } : prev));
+    }, 1800);
+  };
+
+  const handleCancelFile = (fileName) => {
+    cancelledFileNamesRef.current.add(fileName);
+    setUploadProgress((prev) => {
+      if (!prev) return prev;
+      const nextFiles = prev.files.map((f) =>
+        f.name === fileName ? { ...f, status: "cancelled", progress: 0 } : f
+      );
+
+      const allTerminal = nextFiles.every(
+        (f) =>
+          f.status === "success" ||
+          f.status === "error" ||
+          f.status === "cancelled"
+      );
+
+      const overall = allTerminal ? 100 : prev.overall;
+
+      if (allTerminal) {
+        setTimeout(() => {
+          setUploadProgress((current) =>
+            current ? { ...current, active: false } : current
+          );
+        }, 1800);
+      }
+
+      return {
+        ...prev,
+        overall,
+        files: nextFiles,
+      };
+    });
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100">
+    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100 relative">
+      <DashboardModals
+        notification={notification}
+        onCloseNotification={() => setNotification(null)}
+        oversizedModalData={oversizedModalData}
+        onCloseOversizedModal={() => setOversizedModalData(null)}
+        onProceedEligibleUpload={() => {
+          const validFiles = oversizedModalData?.validSizeFiles || [];
+          setOversizedModalData(null);
+          if (validFiles.length > 0) {
+            handleFileUpload(validFiles, true);
+          }
+        }}
+        showDeleteAccountModal={showDeleteAccountModal}
+        onCloseDeleteAccountModal={() => setShowDeleteAccountModal(false)}
+        onConfirmDeleteAccount={handleDeleteAccount}
+      />
+
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
@@ -337,48 +826,41 @@ const Dashboard = () => {
           }}
           viewType={viewType}
           onLogout={handleLogout}
+          onDeleteAccount={() => setShowDeleteAccountModal(true)}
+          isDarkMode={isDarkMode}
+          setIsDarkMode={setIsDarkMode}
         />
       </div>
 
       {/* Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-900">
-        {/* Mobile Top Bar */}
-        <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 hover:bg-slate-800 rounded-xl transition"
-          >
-            <Menu size={24} className="text-slate-300" />
-          </button>
-          <div className="flex items-center gap-2">
-            <img src="/connect.png" alt="Connect Logo" className="w-6 h-6 object-contain rounded" />
-            <span className="font-extrabold text-blue-400 text-lg tracking-tight">Connect</span>
-          </div>
-          <div className="w-8"></div> {/* Spacer for alignment */}
-        </div>
+      <main
+        className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-colors duration-300 ${
+          isDarkMode ? "bg-slate-900" : "bg-slate-50"
+        }`}
+      >
+        <MobileTopBar
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        />
 
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {viewType === "notes" ? (
-            <Notepad
-              tabs={items.filter((i) => i.type === "note")}
-              activeTabId={activeTabId}
-              setActiveTabId={setActiveTabId}
-              onAddTab={addNewTab}
-              onUpdate={updateNoteContent}
-              onDelete={deleteItem}
-            />
-          ) : viewType === "canvas" ? (
-            <CanvasEditor
-              items={items.filter((i) => i.type !== "note")}
-              onDelete={deleteItem}
-              onFileUpload={handleFileUpload}
-              uploadProgress={uploadProgress}
-              onUpdateTitle={renameItem}
-            />
-          ) : (
-            <OurStory />
-          )}
-        </div>
+        <WorkspaceView
+          viewType={viewType}
+          items={items}
+          activeTabId={activeTabId}
+          setActiveTabId={setActiveTabId}
+          addNewTab={addNewTab}
+          updateNoteContent={updateNoteContent}
+          deleteItem={deleteItem}
+          deleteMultipleItems={deleteMultipleItems}
+          handleFileUpload={handleFileUpload}
+          handleCancelUpload={handleCancelUpload}
+          handleCancelFile={handleCancelFile}
+          uploadProgress={uploadProgress}
+          renameItem={renameItem}
+          addLinkItem={addLinkItem}
+          isDarkMode={isDarkMode}
+        />
       </main>
     </div>
   );

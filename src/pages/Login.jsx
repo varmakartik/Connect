@@ -89,7 +89,7 @@ const Login = () => {
             <img
               src="/connect.png"
               alt="Connect Logo"
-              className="relative w-16 h-16 rounded-2xl object-contain shadow-sm transition duration-350 group-hover:scale-[1.03]"
+              className="relative h-16 w-auto max-w-[200px] object-contain shadow-sm transition duration-350 group-hover:scale-[1.03]"
             />
           </div>
 
