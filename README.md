@@ -2,7 +2,7 @@
 
   <img src="public/connect.png" alt="Connect Logo" width="120" height="120" />
 
-  # ⚡ CONNECT
+  # ⚡ CONNECT - Build For Collaboration To Connect 
 
   **Your Centralized All-in-One Cloud Workspace for Notes, Canvas Whiteboards, Folders, Link Vaults & Assets**
 
