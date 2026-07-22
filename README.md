@@ -6,13 +6,14 @@
 
   **Your Centralized All-in-One Cloud Workspace for Notes, Canvas Whiteboards, Folders, Link Vaults & Assets**
 
+  [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-crosser.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://crosser.vercel.app)
   [![React](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
   [![Vite](https://img.shields.io/badge/Vite-7.0-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
   [![Supabase](https://img.shields.io/badge/Supabase-Database%20%26%20Auth-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4.0-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
   [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-  [Features](#-key-features) • [Screenshots](#-application-preview--screenshots) • [Developer & Socials](#-developer--social-links) • [Environment Setup](#-environment-variables--security) • [Getting Started](#-getting-started) • [Database Setup](#-supabase-database--storage-setup)
+  [🌐 Live Demo](https://crosser.vercel.app) • [Features](#-key-features) • [Screenshots](#-application-preview--screenshots) • [Developer & Socials](#-developer--social-links) • [Environment Setup](#-environment-variables--security) • [Getting Started](#-getting-started)
 
 </div>
 
@@ -21,6 +22,8 @@
 ## 📖 Overview
 
 **Connect** is a modern, high-performance web application designed to streamline personal productivity and asset management. Powered by **React 19**, **Vite**, and **Supabase**, Connect integrates a real-time Notepad, an interactive Whiteboard Canvas, a Folder Management System, a curated Link Vault, and Cloud Storage into a seamless, elegant interface with dark mode and glassmorphism styling.
+
+> 🌐 **Live Web Application**: [https://crosser.vercel.app](https://crosser.vercel.app)
 
 ---
 
@@ -93,6 +96,7 @@ Connect is designed and engineered by **Kartik Varma**. Feel free to connect or 
 
 | Platform | Link / Username | Direct Link |
 | :--- | :--- | :--- |
+| **🚀 Live App** | `crosser.vercel.app` | [Open Connect Web App](https://crosser.vercel.app) |
 | **🌐 Portfolio** | `kartikvarma.vercel.app` | [Visit Portfolio](https://kartikvarma.vercel.app) |
 | **🐙 GitHub** | `varmakartik` | [View GitHub](https://github.com/varmakartik) |
 | **💼 LinkedIn** | `kartivarma200430` | [Connect on LinkedIn](https://linkedin.com/in/kartivarma200430) |
