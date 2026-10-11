@@ -87,7 +87,7 @@ const Login = () => {
           <div className="relative mb-4 group">
             <div className="absolute inset-0 bg-blue-100 rounded-2xl blur-md transition duration-300"></div>
             <img
-              src="/connect.png"
+              src="/connect-logo.png" width="256" height="128" decoding="async"
               alt="Connect Logo"
               className="relative h-16 w-auto max-w-[200px] object-contain shadow-sm transition duration-350 group-hover:scale-[1.03]"
             />

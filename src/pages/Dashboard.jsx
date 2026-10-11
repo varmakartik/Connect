@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import Sidebar from "../components/Sidebar";
@@ -6,6 +6,39 @@ import ChangePasswordModal from "../components/ChangePasswordModal";
 import MobileTopBar from "../components/dashboard/MobileTopBar";
 import DashboardModals from "../components/dashboard/DashboardModals";
 import WorkspaceView from "../components/dashboard/WorkspaceView";
+
+// Returns a function with a permanent identity that always runs the latest `fn`,
+// so memoized children don't re-render just because Dashboard re-rendered.
+const useStableHandler = (fn) => {
+  const ref = useRef(fn);
+  useLayoutEffect(() => {
+    ref.current = fn;
+  });
+  return useCallback((...args) => ref.current(...args), []);
+};
+
+// Keep object identity for rows that did not change between fetches, so cards
+// for untouched items skip re-rendering after a realtime refresh.
+const reconcileItems = (prev, next) => {
+  if (prev.length === 0) return next;
+  const prevById = new Map(prev.map((i) => [i.id, i]));
+  let changed = prev.length !== next.length;
+  const merged = next.map((item, idx) => {
+    const old = prevById.get(item.id);
+    if (old) {
+      const keys = Object.keys(item);
+      const same =
+        keys.length === Object.keys(old).length && keys.every((k) => old[k] === item[k]);
+      if (same) {
+        if (prev[idx] !== old) changed = true;
+        return old;
+      }
+    }
+    changed = true;
+    return item;
+  });
+  return changed ? merged : prev;
+};
 
 const Dashboard = () => {
   const { user } = useOutletContext();
@@ -52,8 +85,16 @@ const Dashboard = () => {
   // Sync cache changes securely
   useEffect(() => {
     if (!user || items.length === 0) return;
-    const stableItems = items.filter((item) => !String(item.id).startsWith("temp-"));
-    localStorage.setItem(`connect_items_${user.id}`, JSON.stringify(stableItems));
+    // Serializing every note is costly; coalesce bursts (uploads, realtime refreshes)
+    const timer = setTimeout(() => {
+      try {
+        const stableItems = items.filter((item) => !String(item.id).startsWith("temp-"));
+        localStorage.setItem(`connect_items_${user.id}`, JSON.stringify(stableItems));
+      } catch {
+        // Quota exceeded or storage unavailable — the cache is only a fast-start hint
+      }
+    }, 500);
+    return () => clearTimeout(timer);
   }, [items, user]);
 
   // Set dynamic browser tab title based on active view type
@@ -123,7 +164,7 @@ const Dashboard = () => {
                 setActiveTabId((prevActive) => prevActive || firstNote.id);
               }
             }
-            return processedData;
+            return reconcileItems(prev, processedData);
           }
 
           const newestNote = processedData.find((i) => i.type === "note");
@@ -135,12 +176,19 @@ const Dashboard = () => {
             }
           }
 
-          return processedData;
+          return reconcileItems(prev, processedData);
         });
       }
     };
 
     fetchItems();
+
+    // A batch upload fires one realtime event per row; refetch once per burst
+    let refetchTimer = null;
+    const scheduleFetch = () => {
+      clearTimeout(refetchTimer);
+      refetchTimer = setTimeout(fetchItems, 400);
+    };
 
     const channel = supabase
       .channel(`user-data-${user.id}`)
@@ -152,13 +200,12 @@ const Dashboard = () => {
           table: "items",
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
-          fetchItems();
-        }
+        scheduleFetch
       )
       .subscribe();
 
     return () => {
+      clearTimeout(refetchTimer);
       supabase.removeChannel(channel);
     };
   }, [user]);
@@ -1108,6 +1155,20 @@ const Dashboard = () => {
     });
   };
 
+  const stableAddNewTab = useStableHandler(addNewTab);
+  const stableUpdateNoteContent = useStableHandler(updateNoteContent);
+  const stableDeleteItem = useStableHandler(deleteItem);
+  const stableDeleteMultipleItems = useStableHandler(deleteMultipleItems);
+  const stableHandleFileUpload = useStableHandler(handleFileUpload);
+  const stableCreateFolder = useStableHandler(createFolder);
+  const stableTogglePinItem = useStableHandler(togglePinItem);
+  const stableHandleCancelUpload = useStableHandler(handleCancelUpload);
+  const stableHandleCancelFile = useStableHandler(handleCancelFile);
+  const stableRenameItem = useStableHandler(renameItem);
+  const stableAddLinkItem = useStableHandler(addLinkItem);
+  const stableEditLinkItem = useStableHandler(editLinkItem);
+  const closeUploadProgress = useCallback(() => setUploadProgress(null), []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100 relative">
       <DashboardModals
@@ -1183,20 +1244,20 @@ const Dashboard = () => {
           items={items}
           activeTabId={activeTabId}
           setActiveTabId={setActiveTabId}
-          addNewTab={addNewTab}
-          updateNoteContent={updateNoteContent}
-          deleteItem={deleteItem}
-          deleteMultipleItems={deleteMultipleItems}
-          handleFileUpload={handleFileUpload}
-          onCreateFolder={createFolder}
-          onTogglePin={togglePinItem}
-          handleCancelUpload={handleCancelUpload}
-          handleCancelFile={handleCancelFile}
-          onCloseNotification={() => setUploadProgress(null)}
+          addNewTab={stableAddNewTab}
+          updateNoteContent={stableUpdateNoteContent}
+          deleteItem={stableDeleteItem}
+          deleteMultipleItems={stableDeleteMultipleItems}
+          handleFileUpload={stableHandleFileUpload}
+          onCreateFolder={stableCreateFolder}
+          onTogglePin={stableTogglePinItem}
+          handleCancelUpload={stableHandleCancelUpload}
+          handleCancelFile={stableHandleCancelFile}
+          onCloseNotification={closeUploadProgress}
           uploadProgress={uploadProgress}
-          renameItem={renameItem}
-          addLinkItem={addLinkItem}
-          editLinkItem={editLinkItem}
+          renameItem={stableRenameItem}
+          addLinkItem={stableAddLinkItem}
+          editLinkItem={stableEditLinkItem}
           isDarkMode={isDarkMode}
         />
       </main>

@@ -1,5 +1,5 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Plus, Search, X, Clipboard, Check, Terminal, FileText, Code, FileSpreadsheet, Printer, Download, Share2 } from "lucide-react";
+﻿import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Plus, Search, X, Clipboard, Check, Terminal } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import ToastNotification from "./common/ToastNotification";
 import NotepadTabItem from "./notepad/NotepadTabItem";
@@ -111,16 +111,31 @@ const Notepad = ({
     []
   );
 
+  // Tab titles only depend on draft *titles*, so typing in the body (which only
+  // changes draft content) reuses the same signature and skips recomputing them.
+  const draftTitlesKey = useMemo(
+    () => JSON.stringify(Object.entries(drafts).map(([id, d]) => [id, d.title])),
+    [drafts]
+  );
+
+  const tabTitles = useMemo(() => {
+    const draftTitles = Object.fromEntries(JSON.parse(draftTitlesKey).map(([id, title]) => [id, { title }]));
+    const map = {};
+    for (const t of tabs) map[t.id] = getTabTitle(t, tabs, draftTitles);
+    return map;
+  }, [tabs, draftTitlesKey, getTabTitle]);
+
   const filteredTabs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return tabs;
     return tabs.filter((t) => {
-      const noteTitle = getTabTitle(t, tabs, drafts);
-      const noteContent = drafts[t.id]?.content || t.content || "";
-      const q = searchQuery.toLowerCase();
+      const noteContent = drafts[t.id]?.content ?? t.content ?? "";
       return (
-        noteTitle.toLowerCase().includes(q) || noteContent.toLowerCase().includes(q)
+        (tabTitles[t.id] || "").toLowerCase().includes(q) ||
+        noteContent.toLowerCase().includes(q)
       );
     });
-  }, [tabs, drafts, searchQuery, getTabTitle]);
+  }, [tabs, drafts, searchQuery, tabTitles]);
 
   const activeNote = useMemo(
     () => tabs.find((t) => t.id === activeTabId),
@@ -250,23 +265,29 @@ const Notepad = ({
     return () => clearTimeout(timer);
   }, [autoSaveEnabled, isDirty, isSaving, activeTabId, currentContent, currentTitle, handleSave]);
 
-  // Intercept Ctrl+S / Cmd+S globally in Notepad
+  // Intercept Ctrl+S / Cmd+S globally in Notepad. handleSave changes on every
+  // keystroke, so read it through a ref instead of re-binding the listener.
+  const handleSaveRef = useRef(handleSave);
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  }, [handleSave]);
+
   useEffect(() => {
     const handleSaveShortcut = (e) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
         e.preventDefault();
-        handleSave();
+        handleSaveRef.current();
       }
     };
     window.addEventListener("keydown", handleSaveShortcut);
     return () => window.removeEventListener("keydown", handleSaveShortcut);
-  }, [handleSave]);
+  }, []);
 
   const handleStartInlineEdit = useCallback((tab) => {
     setEditingTabId(tab.id);
   }, []);
 
-  const handleSaveInlineEdit = useCallback(
+  const handleSaveInlineEditImpl = useCallback(
     async (tabId, rawTitle) => {
       setEditingTabId(null);
       let trimmed = rawTitle.trim();
@@ -299,6 +320,13 @@ const Notepad = ({
     },
     [tabs, drafts, getTabTitle, onUpdate]
   );
+
+  // Stable wrapper so every memoized tab doesn't re-render on each keystroke
+  const inlineEditRef = useRef(handleSaveInlineEditImpl);
+  useEffect(() => {
+    inlineEditRef.current = handleSaveInlineEditImpl;
+  }, [handleSaveInlineEditImpl]);
+  const handleSaveInlineEdit = useCallback((...args) => inlineEditRef.current(...args), []);
 
   // Generate 4-character typo-safe alphanumeric code
   const generateShortCode = useCallback(() => {
@@ -521,7 +549,7 @@ const Notepad = ({
             {filteredTabs.map((tab) => {
               const isActive = tab.id === activeTabId;
               const hasDraft = drafts[tab.id] !== undefined;
-              const displayTitle = getTabTitle(tab, tabs, drafts);
+              const displayTitle = tabTitles[tab.id];
               const isEditingInline = editingTabId === tab.id;
 
               return (

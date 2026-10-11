@@ -39,7 +39,7 @@ const Sidebar = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
-              src="/connect.png"
+              src="/connect-logo.png" width="256" height="128" decoding="async"
               alt="Connect Logo"
               className="h-10 w-auto max-w-[150px] object-contain drop-shadow-md rounded-lg"
             />

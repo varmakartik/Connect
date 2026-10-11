@@ -168,6 +168,8 @@ const DocumentCard = ({
               <img
                 src={displayUrl}
                 alt={item.title || "Image"}
+                loading="lazy"
+                decoding="async"
                 className="max-h-full max-w-full object-contain rounded-xl drop-shadow-lg group-hover:scale-105 transition-all duration-300"
               />
             ) : (

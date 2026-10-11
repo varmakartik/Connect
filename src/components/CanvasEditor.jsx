@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { UploadCloud, Folder, ChevronRight, ArrowLeft, FileText, Download } from "lucide-react";
 import ToastNotification from "./common/ToastNotification";
 import { downloadItems } from "../lib/downloads";
@@ -117,7 +117,17 @@ const CanvasEditor = ({
     [sortedItems]
   );
 
-  const isSelected = useCallback((id) => selectedIds.includes(id), [selectedIds]);
+  // Item counts per folder in one pass instead of filtering all items per card
+  const folderCounts = useMemo(() => {
+    const counts = new Map();
+    for (const i of items) {
+      if (i.folder_id) counts.set(i.folder_id, (counts.get(i.folder_id) || 0) + 1);
+    }
+    return counts;
+  }, [items]);
+
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const isSelected = useCallback((id) => selectedSet.has(id), [selectedSet]);
 
   const toggleSelectMode = useCallback(() => {
     setIsSelectMode((prev) => {
@@ -153,7 +163,7 @@ const CanvasEditor = ({
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
-    } catch (e) {
+    } catch {
       const link = document.createElement("a");
       link.href = url;
       link.download = filename || "document";
@@ -190,6 +200,14 @@ const CanvasEditor = ({
       }
     },
     [items, zipProgress]
+  );
+
+  const handleDownloadFolder = useCallback(
+    (id) => {
+      const folder = items.find((i) => i.id === id);
+      if (folder) handleDownloadItems([folder], folder.title);
+    },
+    [items, handleDownloadItems]
   );
 
   const handleDownloadSelected = useCallback(() => {
@@ -259,13 +277,37 @@ const CanvasEditor = ({
     setTempTitle(item.title || "");
   }, []);
 
+  // Read the draft title from a ref so this callback (passed to every card) stays stable while typing
+  const tempTitleRef = useRef(tempTitle);
+  tempTitleRef.current = tempTitle;
+
   const handleSaveTitle = useCallback(
     (id) => {
-      onUpdateTitle(id, tempTitle);
+      onUpdateTitle(id, tempTitleRef.current);
       setEditingId(null);
     },
-    [onUpdateTitle, tempTitle]
+    [onUpdateTitle]
   );
+
+  const handleConfirmDelete = useCallback(
+    (itemOrId) => {
+      // FolderCard passes an id, DocumentCard passes the item itself
+      const id = typeof itemOrId === "object" ? itemOrId?.id : itemOrId;
+      setItemToDelete(items.find((i) => i.id === id) || null);
+      setShowDeleteModal(true);
+    },
+    [items]
+  );
+
+  const handleTogglePin = useCallback(
+    (id) => onTogglePin && onTogglePin(id, activeFolderId),
+    [onTogglePin, activeFolderId]
+  );
+
+  const handleOpenFolder = useCallback((folderId) => {
+    setActiveFolderId(folderId);
+    setSearchQuery("");
+  }, []);
 
   const handleCancelEditing = useCallback(() => {
     setEditingId(null);
@@ -449,40 +491,28 @@ const CanvasEditor = ({
                   <span>Folders ({foldersList.length})</span>
                 </h4>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4">
-                  {foldersList.map((item) => {
-                    const itemCountInside = items.filter(
-                      (i) => i.folder_id === item.id
-                    ).length;
-
-                    return (
-                      <FolderCard
-                        key={item.id}
-                        item={item}
-                        itemCount={itemCountInside}
-                        isSelectMode={isSelectMode}
-                        selected={isSelected(item.id)}
-                        onToggleSelect={toggleSelect}
-                        onOpenFolder={(folderId) => {
-                          setActiveFolderId(folderId);
-                          setSearchQuery("");
-                        }}
-                        onStartEditing={handleStartEditing}
-                        onSaveTitle={handleSaveTitle}
-                        onCancelEditing={handleCancelEditing}
-                        isEditing={editingId === item.id}
-                        tempTitle={tempTitle}
-                        setTempTitle={setTempTitle}
-                        onConfirmDelete={(id) => {
-                          setItemToDelete(item);
-                          setShowDeleteModal(true);
-                        }}
-                        onTogglePin={(id) => onTogglePin && onTogglePin(id, activeFolderId)}
-                        onDownload={() => handleDownloadItems([item], item.title)}
-                        isDownloading={zipProgress?.label === item.title}
-                        isDarkMode={isDarkMode}
-                      />
-                    );
-                  })}
+                  {foldersList.map((item) => (
+                    <FolderCard
+                      key={item.id}
+                      item={item}
+                      itemCount={folderCounts.get(item.id) || 0}
+                      isSelectMode={isSelectMode}
+                      selected={isSelected(item.id)}
+                      onToggleSelect={toggleSelect}
+                      onOpenFolder={handleOpenFolder}
+                      onStartEditing={handleStartEditing}
+                      onSaveTitle={handleSaveTitle}
+                      onCancelEditing={handleCancelEditing}
+                      isEditing={editingId === item.id}
+                      tempTitle={editingId === item.id ? tempTitle : ""}
+                      setTempTitle={setTempTitle}
+                      onConfirmDelete={handleConfirmDelete}
+                      onTogglePin={handleTogglePin}
+                      onDownload={handleDownloadFolder}
+                      isDownloading={zipProgress?.label === item.title}
+                      isDarkMode={isDarkMode}
+                    />
+                  ))}
                 </div>
               </div>
             )}
@@ -510,14 +540,11 @@ const CanvasEditor = ({
                       onSaveTitle={handleSaveTitle}
                       onCancelEditing={handleCancelEditing}
                       isEditing={editingId === item.id}
-                      tempTitle={tempTitle}
+                      tempTitle={editingId === item.id ? tempTitle : ""}
                       setTempTitle={setTempTitle}
-                      onConfirmDelete={(id) => {
-                        setItemToDelete(item);
-                        setShowDeleteModal(true);
-                      }}
+                      onConfirmDelete={handleConfirmDelete}
                       onDownload={handleDownload}
-                      onTogglePin={(id) => onTogglePin && onTogglePin(id, activeFolderId)}
+                      onTogglePin={handleTogglePin}
                       isDarkMode={isDarkMode}
                     />
                   ))}

@@ -51,29 +51,51 @@ export const getSignedUrl = async (urlOrPath) => {
     return inFlight.get(path);
   }
 
-  const request = (async () => {
-    try {
-      const { data, error } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrl(path, SIGN_TTL_SECONDS);
-
-      if (error || !data?.signedUrl) {
-        console.warn("Could not sign storage object:", path, error?.message);
-        return null;
-      }
-
-      signedCache.set(path, {
-        url: data.signedUrl,
-        expiresAt: Date.now() + CACHE_TTL_MS,
-      });
-      return data.signedUrl;
-    } finally {
-      inFlight.delete(path);
-    }
-  })();
+  const request = new Promise((resolve) => {
+    pendingBatch.set(path, resolve);
+    if (!batchTimer) batchTimer = setTimeout(flushBatch, 0);
+  });
 
   inFlight.set(path, request);
   return request;
+};
+
+// Cards mount together, so collect every path requested in the same tick and
+// sign them with one createSignedUrls call instead of one request per card.
+let pendingBatch = new Map(); // path -> resolve
+let batchTimer = null;
+
+const flushBatch = async () => {
+  const batch = pendingBatch;
+  pendingBatch = new Map();
+  batchTimer = null;
+
+  const paths = [...batch.keys()];
+  const resolved = new Map();
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrls(paths, SIGN_TTL_SECONDS);
+
+    if (error) {
+      console.warn("Could not sign storage objects:", error.message);
+    } else {
+      for (const entry of data || []) {
+        if (entry.signedUrl && !entry.error) resolved.set(entry.path, entry.signedUrl);
+        else console.warn("Could not sign storage object:", entry.path, entry.error);
+      }
+    }
+  } catch (err) {
+    console.warn("Could not sign storage objects:", err);
+  }
+
+  for (const [path, resolve] of batch) {
+    const url = resolved.get(path) || null;
+    if (url) signedCache.set(path, { url, expiresAt: Date.now() + CACHE_TTL_MS });
+    inFlight.delete(path);
+    resolve(url);
+  }
 };
 
 /** Drop cached links for objects that no longer exist. */

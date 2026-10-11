@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import Footer from "../common/Footer";
 
@@ -37,13 +37,20 @@ const WorkspaceView = ({
   editLinkItem,
   isDarkMode,
 }) => {
+  // Stable per-view lists so memoized views only re-render when their data changes
+  const noteItems = useMemo(() => items.filter((i) => i.type === "note"), [items]);
+  const documentItems = useMemo(
+    () => items.filter((i) => i.type !== "note" && i.type !== "link"),
+    [items]
+  );
+
   return (
     <div className="flex-1 overflow-y-auto flex flex-col custom-scrollbar">
       <div className="flex-none flex flex-col min-h-[calc(100vh-3.5rem)] md:min-h-screen">
         <Suspense fallback={<SubcomponentLoader />}>
           {viewType === "notes" ? (
             <Notepad
-              tabs={items.filter((i) => i.type === "note")}
+              tabs={noteItems}
               activeTabId={activeTabId}
               setActiveTabId={setActiveTabId}
               onAddTab={addNewTab}
@@ -53,7 +60,7 @@ const WorkspaceView = ({
             />
           ) : viewType === "canvas" ? (
             <CanvasEditor
-              items={items.filter((i) => i.type !== "note" && i.type !== "link")}
+              items={documentItems}
               onDelete={deleteItem}
               onDeleteMultiple={deleteMultipleItems}
               onFileUpload={handleFileUpload}

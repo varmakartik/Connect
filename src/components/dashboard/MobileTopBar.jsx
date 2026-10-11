@@ -20,7 +20,7 @@ const MobileTopBar = ({ onOpenSidebar, isDarkMode, onToggleDarkMode }) => {
         <Menu size={24} className={isDarkMode ? "text-slate-300" : "text-slate-700"} />
       </button>
       <div className="flex items-center gap-2">
-        <img src="/connect.png" alt="Connect Logo" className="h-8 w-auto object-contain rounded" />
+        <img src="/connect-logo.png" width="256" height="128" decoding="async" alt="Connect Logo" className="h-8 w-auto object-contain rounded" />
         <span className="font-extrabold text-blue-500 text-lg tracking-tight">Connect</span>
       </div>
       <button
