@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LockKeyhole, Plus, Search, Lock, ShieldCheck } from "lucide-react";
+import { LockKeyhole, Plus, Search, Lock, ShieldCheck, Zap, X } from "lucide-react";
 import ToastNotification from "./common/ToastNotification";
 import ConfirmModal from "./canvas/ConfirmModal";
 import VaultGate from "./credentials/VaultGate";
@@ -18,6 +18,9 @@ import {
   unlockVault,
 } from "../lib/vault";
 
+// The Connect Autofill extension marks the page when it's installed (extension/bridge.js)
+const getAutofillExtension = () => document.documentElement.dataset.connectAutofill || null;
+
 const CredentialVault = ({ items = [], onUpsert, onDelete, onDeleteMultiple, isDarkMode = true }) => {
   const [vaultKey, setVaultKey] = useState(() => getSessionKey());
   const [secrets, setSecrets] = useState({}); // id -> { username, password } | { error }
@@ -27,6 +30,26 @@ const CredentialVault = ({ items = [], onUpsert, onDelete, onDeleteMultiple, isD
   const [formState, setFormState] = useState(null); // { initial } while the form is open
   const [pendingDelete, setPendingDelete] = useState(null);
   const decryptCache = useRef(new Map()); // `${id}:${content}` -> secret
+  const [autofillVersion] = useState(getAutofillExtension);
+  const [hideAutofillHint, setHideAutofillHint] = useState(() => {
+    try {
+      return localStorage.getItem("connect_hide_autofill_hint") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  // Errors reported back by the extension for an "open and fill" request
+  useEffect(() => {
+    const onMessage = (event) => {
+      if (event.source !== window || event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (data?.source !== "connect-extension" || data.type !== "AUTOFILL_RESULT" || data.ok) return;
+      setToast({ type: "error", title: "Autofill Failed", message: data.error || "The extension could not open the site." });
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   // Oldest vault row wins if two were ever created concurrently
   const vaultRow = useMemo(
@@ -126,10 +149,27 @@ const CredentialVault = ({ items = [], onUpsert, onDelete, onDeleteMultiple, isD
       .catch(() => setToast({ type: "error", title: "Copy Failed", message: "The browser blocked clipboard access." }));
   }, []);
 
-  // Websites can't be filled in from another site, so put the password on the
-  // clipboard first (while this page still has focus), then open the login page.
+  // With the extension installed, hand the login to it: it opens the site and
+  // fills the form. Without it a website can't fill another site's form, so put
+  // the password on the clipboard (while this page has focus) and open the page.
   const handleOpen = useCallback((item, secret) => {
     touchSession();
+
+    if (autofillVersion) {
+      window.postMessage(
+        {
+          source: "connect-app",
+          type: "AUTOFILL_OPEN",
+          requestId: `${item.id}:${Date.now()}`,
+          url: item.url,
+          username: secret?.username || "",
+          password: secret?.password || "",
+        },
+        window.location.origin
+      );
+      return;
+    }
+
     const toCopy = secret?.password || secret?.username;
     if (toCopy) {
       copyToClipboard(toCopy, { secret: true }).catch(() => {});
@@ -142,7 +182,7 @@ const CredentialVault = ({ items = [], onUpsert, onDelete, onDeleteMultiple, isD
         message: "Paste it into the login form on the page that just opened.",
       });
     }
-  }, []);
+  }, [autofillVersion]);
 
   const handleSave = useCallback(
     async ({ title, url, username, password }) => {
@@ -211,6 +251,11 @@ const CredentialVault = ({ items = [], onUpsert, onDelete, onDeleteMultiple, isD
               <p className="text-[11px] text-slate-400 flex items-center gap-1">
                 <ShieldCheck size={11} className="text-emerald-400" />
                 {credentials.length} saved · end-to-end encrypted
+                {autofillVersion && (
+                  <span className="ml-1 inline-flex items-center gap-0.5 text-blue-400">
+                    · <Zap size={10} /> Autofill on
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -237,6 +282,35 @@ const CredentialVault = ({ items = [], onUpsert, onDelete, onDeleteMultiple, isD
             <span>Add</span>
           </button>
         </div>
+
+        {!autofillVersion && !hideAutofillHint && (
+          <div
+            className={`flex items-start gap-2.5 p-3 mb-4 rounded-xl border text-xs leading-relaxed ${
+              isDarkMode ? "bg-blue-500/5 border-blue-500/20 text-slate-300" : "bg-blue-50 border-blue-200 text-slate-700"
+            }`}
+          >
+            <Zap size={14} className="text-blue-400 shrink-0 mt-0.5" />
+            <span className="flex-1">
+              <strong>Want logins filled in automatically?</strong> Install the <strong>Connect Autofill</strong> browser
+              extension (desktop Chrome, Edge or Brave). Without it, <em>Open</em> copies the password for you to paste.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setHideAutofillHint(true);
+                try {
+                  localStorage.setItem("connect_hide_autofill_hint", "1");
+                } catch {
+                  // Hint will just show again next time
+                }
+              }}
+              className="p-0.5 text-slate-400 hover:text-slate-200 cursor-pointer"
+              aria-label="Dismiss"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         {credentials.length > 0 && (
           <div className="relative mb-5">

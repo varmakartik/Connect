@@ -55,7 +55,7 @@ const CredentialCard = ({ item, secret, copiedKey, onCopy, onOpen, onEdit, onDel
           onClick={() => onOpen(item, secret)}
           disabled={failed}
           className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-extrabold shadow-md shadow-blue-600/25 active:scale-95 transition cursor-pointer shrink-0 disabled:opacity-40"
-          title="Copy password and open the login page"
+          title="Open the login page and fill in this credential"
         >
           <ExternalLink size={14} />
           <span>Open</span>

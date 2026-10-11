@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Connect Autofill",
+  "version": "1.0.0",
+  "description": "Fills saved logins from your Connect credential vault when you press Open.",
+  "permissions": ["scripting", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://crosser.vercel.app/*",
+        "http://localhost:5173/*",
+        "http://localhost:4173/*"
+      ],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "128": "icon.png"
+  }
+}
