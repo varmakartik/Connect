@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Rocket } from "lucide-react";
+import { getStoredIsDarkMode } from "../lib/theme";
 
 const LoadingScreen = () => {
   const [taglineIndex, setTaglineIndex] = useState(0);
+  const [isDarkMode] = useState(getStoredIsDarkMode);
   const taglines = [
     "Securing your connection...",
     "Igniting fuel cells...",
@@ -19,9 +21,13 @@ const LoadingScreen = () => {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#070b13] text-white relative overflow-hidden select-none">
+    <div
+      className={`flex flex-col items-center justify-center min-h-screen relative overflow-hidden select-none ${
+        isDarkMode ? "bg-[#070b13] text-white" : "bg-slate-50 text-slate-800"
+      }`}
+    >
       {/* Dynamic Starfield Background */}
-      <div className="absolute inset-0 pointer-events-none opacity-40">
+      <div className={`absolute inset-0 pointer-events-none ${isDarkMode ? "opacity-40" : "opacity-0"}`}>
         {[...Array(25)].map((_, i) => {
           const size = Math.random() * 2 + 1; // 1px to 3px
           const left = Math.random() * 100; // 0% to 100%
@@ -47,14 +53,18 @@ const LoadingScreen = () => {
       {/* Main Rocket Console */}
       <div className="flex flex-col items-center space-y-8 z-10">
         {/* Rocket Launcher Area */}
-        <div className="relative flex items-center justify-center w-28 h-28 bg-slate-900/60 border border-slate-800/80 rounded-full shadow-[0_0_50px_rgba(59,130,246,0.15)]">
+        <div
+          className={`relative flex items-center justify-center w-28 h-28 border rounded-full shadow-[0_0_50px_rgba(59,130,246,0.15)] ${
+            isDarkMode ? "bg-slate-900/60 border-slate-800/80" : "bg-white border-slate-200"
+          }`}
+        >
           {/* Shaking Rocket Body */}
           <div className="relative animate-rocket-rumble flex flex-col items-center">
             <Rocket size={44} className="text-blue-400 fill-blue-500/20 transform -rotate-45" />
             
             {/* Pulsing engine flame */}
             <div className="absolute -bottom-6 w-3 h-8 bg-gradient-to-t from-transparent via-orange-500 to-yellow-400 rounded-full animate-flame-thrust blur-[1px]"></div>
-            <div className="absolute -bottom-4 w-1.5 h-5 bg-white rounded-full animate-flame-thrust"></div>
+            <div className={`absolute -bottom-4 w-1.5 h-5 rounded-full animate-flame-thrust ${isDarkMode ? "bg-white" : "bg-yellow-200"}`}></div>
 
             {/* Drifting smoke particles */}
             <div className="absolute -bottom-10 flex gap-1 justify-center pointer-events-none opacity-50">
@@ -67,11 +77,15 @@ const LoadingScreen = () => {
 
         {/* Brand & Loading Info */}
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-400 animate-pulse uppercase">
+          <h2
+            className={`text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r animate-pulse uppercase ${
+              isDarkMode ? "from-blue-400 via-indigo-400 to-cyan-400" : "from-blue-600 via-indigo-600 to-cyan-600"
+            }`}
+          >
             Connect
           </h2>
           <div className="h-6 flex items-center justify-center">
-            <p className="text-sm text-slate-400 font-medium tracking-wide animate-fade-in transition-all duration-300">
+            <p className={`text-sm font-medium ${isDarkMode ? "text-slate-400" : "text-slate-500"} tracking-wide animate-fade-in transition-all duration-300`}>
               {taglines[taglineIndex]}
             </p>
           </div>

@@ -56,6 +56,16 @@
         }
       }
     </script>
+      <script>
+      // Paint the saved theme before the app loads so there's no dark/light flash
+      (function () {
+        var dark = false;
+        try { dark = localStorage.getItem("connect_theme") === "dark"; } catch (e) {}
+        var root = document.documentElement;
+        root.style.colorScheme = dark ? "dark" : "light";
+        root.style.backgroundColor = dark ? "#020617" : "#f8fafc";
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

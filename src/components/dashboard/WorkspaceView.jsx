@@ -11,8 +11,12 @@ const LinkVault = lazy(() => import("../LinkVault"));
 const LargeFilesView = lazy(() => import("../LargeFilesView"));
 const CredentialVault = lazy(() => import("../CredentialVault"));
 
-const SubcomponentLoader = () => (
-  <div className="flex-1 flex flex-col items-center justify-center bg-slate-900 text-slate-400 py-20">
+const SubcomponentLoader = ({ isDarkMode }) => (
+  <div
+    className={`flex-1 flex flex-col items-center justify-center py-20 ${
+      isDarkMode ? "bg-slate-900 text-slate-400" : "bg-slate-50 text-slate-500"
+    }`}
+  >
     <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-2" />
     <span className="text-xs font-semibold tracking-wider">Loading Workspace...</span>
   </div>
@@ -50,7 +54,7 @@ const WorkspaceView = ({
   return (
     <div className="flex-1 overflow-y-auto flex flex-col custom-scrollbar">
       <div className="flex-none flex flex-col min-h-[calc(100vh-3.5rem)] md:min-h-screen">
-        <Suspense fallback={<SubcomponentLoader />}>
+        <Suspense fallback={<SubcomponentLoader isDarkMode={isDarkMode} />}>
           {viewType === "notes" ? (
             <Notepad
               tabs={noteItems}
@@ -98,7 +102,7 @@ const WorkspaceView = ({
               isDarkMode={isDarkMode}
             />
           ) : (
-            <OurStory />
+            <OurStory isDarkMode={isDarkMode} />
           )}
         </Suspense>
       </div>

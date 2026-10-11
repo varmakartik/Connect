@@ -7,6 +7,7 @@ import MobileTopBar from "../components/dashboard/MobileTopBar";
 import DashboardModals from "../components/dashboard/DashboardModals";
 import WorkspaceView from "../components/dashboard/WorkspaceView";
 import { NON_DOCUMENT_TYPES } from "../lib/itemTypes";
+import { getStoredIsDarkMode, storeIsDarkMode } from "../lib/theme";
 
 // Returns a function with a permanent identity that always runs the latest `fn`,
 // so memoized children don't re-render just because Dashboard re-rendered.
@@ -56,7 +57,7 @@ const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(getStoredIsDarkMode);
   const [notification, setNotification] = useState(null);
   const [oversizedModalData, setOversizedModalData] = useState(null);
   const isUploadCancelledRef = useRef(false);
@@ -97,6 +98,10 @@ const Dashboard = () => {
     }, 500);
     return () => clearTimeout(timer);
   }, [items, user]);
+
+  useEffect(() => {
+    storeIsDarkMode(isDarkMode);
+  }, [isDarkMode]);
 
   // Set dynamic browser tab title based on active view type
   useEffect(() => {
@@ -1204,7 +1209,11 @@ const Dashboard = () => {
   const closeUploadProgress = useCallback(() => setUploadProgress(null), []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100 relative">
+    <div
+      className={`flex h-screen overflow-hidden relative ${
+        isDarkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-800"
+      }`}
+    >
       <DashboardModals
         notification={notification}
         onCloseNotification={() => setNotification(null)}
