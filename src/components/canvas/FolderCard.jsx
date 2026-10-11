@@ -1,5 +1,5 @@
 import React from "react";
-import { Folder, FolderOpen, Edit3, Trash2, ArrowRight, Pin, Check, X, Square, CheckSquare } from "lucide-react";
+import { Folder, FolderOpen, Edit3, Trash2, ArrowRight, Pin, Check, X, Square, CheckSquare, Download, Loader } from "lucide-react";
 
 const FolderCard = ({
   item,
@@ -16,6 +16,8 @@ const FolderCard = ({
   setTempTitle,
   onConfirmDelete,
   onTogglePin,
+  onDownload,
+  isDownloading = false,
   isDarkMode = true,
 }) => {
   return (
@@ -146,18 +148,40 @@ const FolderCard = ({
 
       {/* Spacious & Clean Action Footer */}
       <div className="space-y-3 pt-3 border-t border-slate-800/50">
+        <div className="flex items-stretch gap-2">
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onOpenFolder(item.id);
           }}
-          className="w-full py-2 px-3 rounded-xl font-extrabold text-xs transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-450 hover:to-orange-450 text-white shadow-md shadow-amber-500/20 active:scale-95"
+          className="flex-1 min-w-0 py-2 px-3 rounded-xl font-extrabold text-xs transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-450 hover:to-orange-450 text-white shadow-md shadow-amber-500/20 active:scale-95"
         >
           <FolderOpen size={14} />
           <span>Open Folder</span>
           <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
         </button>
+
+        {onDownload && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload(item.id);
+            }}
+            disabled={isDownloading}
+            className={`px-3 rounded-xl border transition cursor-pointer flex items-center justify-center shrink-0 ${
+              isDarkMode
+                ? "bg-slate-900 border-slate-700 text-slate-300 hover:text-amber-400 hover:border-amber-500/50"
+                : "bg-slate-50 border-slate-200 text-slate-600 hover:text-amber-600 hover:border-amber-400"
+            } ${isDownloading ? "opacity-60 cursor-wait" : ""}`}
+            title="Download folder as .zip"
+            aria-label="Download folder as zip"
+          >
+            {isDownloading ? <Loader size={15} className="animate-spin" /> : <Download size={15} />}
+          </button>
+        )}
+        </div>
 
         <div className="grid grid-cols-3 gap-1 text-[11px] font-extrabold">
           <button

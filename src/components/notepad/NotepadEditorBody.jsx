@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import { Edit3, Copy, Check } from "lucide-react";
+import { resolveNoteColor } from "./noteColors";
 
 const NotepadEditorBody = ({
   activeNote,
@@ -38,7 +39,7 @@ const NotepadEditorBody = ({
 
   return (
     <div
-      className={`flex-1 relative overflow-hidden flex flex-col min-h-[300px] sm:min-h-[450px] ${
+      className={`flex-1 relative overflow-hidden flex flex-col min-h-[300px] ${
         isDarkMode ? "bg-[#060b14] text-slate-100" : "bg-white text-slate-800"
       }`}
       onContextMenu={(e) => e.preventDefault()}
@@ -64,19 +65,12 @@ const NotepadEditorBody = ({
           )}
           <textarea
             ref={textareaRef}
-            className={`w-full flex-1 p-4 sm:p-6 text-xs sm:text-sm font-medium leading-relaxed resize-none outline-none custom-scrollbar transition-colors min-h-[260px] sm:min-h-[400px] ${
+            className={`w-full flex-1 px-4 py-3 sm:px-6 sm:py-5 text-sm sm:text-[15px] leading-7 resize-none outline-none custom-scrollbar transition-colors min-h-[260px] ${
               isDarkMode
                 ? "bg-[#060b14] placeholder-slate-600 focus:bg-[#060b14]"
                 : "bg-white placeholder-slate-400 focus:bg-white"
             }`}
-            style={{
-              color:
-                textColor !== "default"
-                  ? textColor
-                  : isDarkMode
-                  ? "#f8fafc"
-                  : "#1e293b",
-            }}
+            style={{ color: resolveNoteColor(textColor, isDarkMode) }}
             placeholder="Type your notes here... (Ctrl+S to save)"
             value={currentContent}
             onChange={(e) => {

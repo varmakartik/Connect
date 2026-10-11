@@ -1,5 +1,7 @@
-import React, { useState, useMemo, useCallback } from "react";
-import { UploadCloud, Folder, ChevronRight, ArrowLeft, FileText } from "lucide-react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { UploadCloud, Folder, ChevronRight, ArrowLeft, FileText, Download } from "lucide-react";
+import ToastNotification from "./common/ToastNotification";
+import { downloadItems } from "../lib/downloads";
 import ConfirmModal from "./canvas/ConfirmModal";
 import SelectionBar from "./canvas/SelectionBar";
 import RocketProgressConsole from "./canvas/RocketProgressConsole";
@@ -39,6 +41,8 @@ const CanvasEditor = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFolderId, setActiveFolderId] = useState(null);
   const [activeFilter, setActiveFilter] = useState("all");
+  const [zipProgress, setZipProgress] = useState(null); // { label, done, total }
+  const [toast, setToast] = useState(null);
 
   const activeFolder = useMemo(
     () => items.find((i) => i.id === activeFolderId && i.type === "folder"),
@@ -158,6 +162,77 @@ const CanvasEditor = ({
     }
   }, []);
 
+  // Zip up folders / multiple files (a single plain file downloads as-is)
+  const handleDownloadItems = useCallback(
+    async (targets, zipName) => {
+      if (!targets.length || zipProgress) return;
+      setZipProgress({ label: zipName, done: 0, total: 0 });
+      try {
+        const { downloaded, failed } = await downloadItems(
+          targets,
+          items,
+          zipName,
+          (done, total) => setZipProgress({ label: zipName, done, total })
+        );
+        if (downloaded === 0 && failed.length === 0) {
+          setToast({ type: "info", title: "Nothing to Download", message: "The selection has no files." });
+        } else if (failed.length > 0) {
+          setToast({
+            type: "warning",
+            title: "Some Files Skipped",
+            message: `${failed.length} file(s) could not be downloaded: ${failed.slice(0, 3).join(", ")}`,
+          });
+        }
+      } catch (err) {
+        setToast({ type: "error", title: "Download Failed", message: err.message || "Could not download files." });
+      } finally {
+        setZipProgress(null);
+      }
+    },
+    [items, zipProgress]
+  );
+
+  const handleDownloadSelected = useCallback(() => {
+    const targets = items.filter((i) => selectedIds.includes(i.id));
+    const name =
+      targets.length === 1
+        ? targets[0].title
+        : `${activeFolder?.title || "Connect"} - ${targets.length} items`;
+    handleDownloadItems(targets, name);
+  }, [items, selectedIds, activeFolder, handleDownloadItems]);
+
+  // Ctrl+V / Cmd+V anywhere in Documents uploads pasted images/files into the open folder
+  useEffect(() => {
+    const handlePaste = (e) => {
+      const clipboardFiles = Array.from(e.clipboardData?.files || []);
+      if (clipboardFiles.length === 0) return;
+      e.preventDefault();
+
+      const stamp = new Date()
+        .toISOString()
+        .replace("T", " ")
+        .replace(/\..+$/, "")
+        .replace(/:/g, "-");
+
+      // Screenshots arrive as "image.png" every time, which would be skipped as a duplicate
+      const files = clipboardFiles.map((file, idx) => {
+        const isGenericName = !file.name || /^image\.\w+$/i.test(file.name);
+        if (!isGenericName) return file;
+        const ext = (file.type.split("/")[1] || "png").replace("jpeg", "jpg").replace(/\+.*$/, "");
+        const suffix = clipboardFiles.length > 1 ? ` (${idx + 1})` : "";
+        return new File([file], `Pasted image ${stamp}${suffix}.${ext}`, {
+          type: file.type || "image/png",
+          lastModified: Date.now(),
+        });
+      });
+
+      onFileUpload(files, activeFolderId);
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [onFileUpload, activeFolderId]);
+
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -242,6 +317,23 @@ const CanvasEditor = ({
               {activeFolder ? `Files will be stored in "${activeFolder.title}"` : "PDFs, Docs, or Images up to 50MB"}
             </p>
           </div>
+        </div>
+      )}
+
+      <ToastNotification notification={toast} onClose={() => setToast(null)} />
+
+      {/* ZIP DOWNLOAD PROGRESS */}
+      {zipProgress && (
+        <div
+          className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-[170] flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-2xl text-xs font-bold animate-fadeIn max-w-[90vw] ${
+            isDarkMode ? "bg-[#0b1329] border-slate-700 text-slate-200" : "bg-white border-slate-200 text-slate-800"
+          }`}
+        >
+          <Download size={16} className="text-blue-400 animate-bounce shrink-0" />
+          <span className="truncate">
+            Preparing "{zipProgress.label}"
+            {zipProgress.total > 0 && ` — ${zipProgress.done}/${zipProgress.total}`}
+          </span>
         </div>
       )}
 
@@ -332,6 +424,8 @@ const CanvasEditor = ({
             totalCount={sortedItems.length}
             onSelectAll={handleSelectAll}
             onBatchDelete={() => setShowBatchDeleteModal(true)}
+            onDownloadSelected={handleDownloadSelected}
+            isDownloading={!!zipProgress}
             onDeleteAll={() => setShowDeleteAllModal(true)}
             onCancel={toggleSelectMode}
             isDarkMode={isDarkMode}
@@ -383,6 +477,8 @@ const CanvasEditor = ({
                           setShowDeleteModal(true);
                         }}
                         onTogglePin={(id) => onTogglePin && onTogglePin(id, activeFolderId)}
+                        onDownload={() => handleDownloadItems([item], item.title)}
+                        isDownloading={zipProgress?.label === item.title}
                         isDarkMode={isDarkMode}
                       />
                     );

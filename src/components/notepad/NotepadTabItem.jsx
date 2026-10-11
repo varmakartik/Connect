@@ -18,14 +18,14 @@ const NotepadTabItem = ({
 
   return (
     <div
-      className={`tab-transition animate-slideInRight flex items-center text-[11px] sm:text-xs font-bold cursor-pointer shrink-0 gap-2 sm:gap-2.5 px-3 sm:px-4 py-1.5 sm:py-2 border-t-2 rounded-xl max-w-[180px] sm:max-w-[220px] ${
+      className={`tab-transition group flex items-center text-xs font-semibold cursor-pointer shrink-0 gap-1.5 pl-3 pr-1.5 h-8 rounded-lg border max-w-[160px] sm:max-w-[200px] ${
         isActive
           ? isDarkMode
-            ? "bg-slate-950 border-t-blue-500 text-white shadow-lg"
-            : "bg-white border-t-blue-600 text-blue-600 shadow-md shadow-slate-200"
+            ? "bg-slate-800/80 border-slate-700 text-white"
+            : "bg-white border-slate-300 text-blue-600 shadow-sm"
           : isDarkMode
-          ? "bg-slate-900/30 border-t-transparent text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
-          : "bg-slate-200/30 border-t-transparent text-slate-500 hover:bg-slate-200/80 hover:text-slate-700"
+          ? "bg-transparent border-transparent text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
+          : "bg-transparent border-transparent text-slate-500 hover:bg-slate-200/80 hover:text-slate-700"
       }`}
       onClick={() => onSelect(tab.id)}
     >
@@ -49,7 +49,7 @@ const NotepadTabItem = ({
         />
       ) : (
         <span
-          className="max-w-[110px] truncate"
+          className="min-w-0 truncate"
           onDoubleClick={(e) => {
             e.stopPropagation();
             onStartInlineEdit(tab);
@@ -63,8 +63,8 @@ const NotepadTabItem = ({
       {children}
 
       <span
-        className={`w-2 h-2 rounded-full shrink-0 transition-colors duration-250 ${
-          hasDraft ? "bg-amber-500 animate-pulse" : "bg-emerald-500 shadow-sm"
+        className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-250 ${
+          hasDraft ? "bg-amber-500 animate-pulse" : isActive ? "bg-emerald-500" : "bg-emerald-500/50"
         }`}
         title={hasDraft ? "Unsaved changes" : "Saved"}
       />
@@ -74,7 +74,7 @@ const NotepadTabItem = ({
           e.stopPropagation();
           onDelete(tab.id);
         }}
-        className="hover:text-red-500 text-slate-400 transition-colors ml-1 p-0.5 rounded-md hover:bg-slate-200/50"
+        className={`text-slate-400 hover:text-red-500 transition p-1 rounded-md hover:bg-slate-500/20 ${isActive ? "opacity-100" : "opacity-60 sm:opacity-0 sm:group-hover:opacity-100"}`}
         title="Close tab"
       >
         <X size={12} />

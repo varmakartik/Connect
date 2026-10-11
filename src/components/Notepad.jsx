@@ -492,7 +492,7 @@ const Notepad = ({
 
   return (
     <div
-      className={`flex-1 flex flex-col h-full min-h-full overflow-hidden p-4 sm:p-6 transition-colors ${
+      className={`flex-1 flex flex-col h-full min-h-full overflow-hidden p-2 sm:p-4 lg:p-6 transition-colors ${
         isDarkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-800"
       }`}
     >
@@ -503,7 +503,7 @@ const Notepad = ({
 
       {/* Sleek Outer Container Card for Notepad */}
       <div
-        className={`flex-1 flex flex-col h-full min-h-full overflow-hidden rounded-[2rem] border shadow-2xl transition-all ${
+        className={`flex-1 flex flex-col h-full min-h-full overflow-hidden rounded-2xl sm:rounded-3xl border shadow-xl transition-all ${
           isDarkMode
             ? "bg-[#070d18] border-slate-800/90 shadow-black/60"
             : "bg-white border-slate-200 shadow-slate-200/80"
@@ -511,13 +511,13 @@ const Notepad = ({
       >
         {/* TOP TAB BAR & SEARCH ROW */}
         <div
-          className={`px-4 pt-3 pb-1 border-b flex items-center justify-between gap-3 overflow-x-auto custom-scrollbar transition-colors ${
+          className={`px-2 sm:px-3 py-1.5 border-b flex items-center justify-between gap-2 transition-colors ${
             isDarkMode
               ? "bg-slate-900/50 border-slate-800/80"
               : "bg-slate-100 border-slate-200"
           }`}
         >
-          <div className="flex items-center gap-2 overflow-x-auto py-1 custom-scrollbar flex-1">
+          <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar flex-1 min-w-0">
             {filteredTabs.map((tab) => {
               const isActive = tab.id === activeTabId;
               const hasDraft = drafts[tab.id] !== undefined;
@@ -544,14 +544,14 @@ const Notepad = ({
             <button
               type="button"
               onClick={onAddTab}
-              className={`p-2 rounded-xl transition-all duration-200 cursor-pointer border ${
+              className={`h-8 w-8 flex items-center justify-center shrink-0 rounded-lg transition-all duration-200 cursor-pointer border ${
                 isDarkMode
                   ? "bg-slate-800/60 hover:bg-slate-800 text-slate-300 border-slate-700/60"
                   : "bg-white hover:bg-slate-200 text-slate-600 border-slate-300 shadow-sm"
               }`}
               title="Create New Note"
             >
-              <Plus size={16} />
+              <Plus size={15} />
             </button>
           </div>
 
@@ -566,7 +566,7 @@ const Notepad = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search notes..."
-              className={`w-full pl-8 pr-3 py-1.5 rounded-xl text-xs outline-none border transition ${
+              className={`w-full h-8 pl-8 pr-3 rounded-lg text-xs outline-none border transition ${
                 isDarkMode
                   ? "bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-blue-500/50"
                   : "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-blue-600/50"

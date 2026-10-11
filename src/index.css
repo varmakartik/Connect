@@ -36,7 +36,7 @@ html, body {
 /* 3. Adjust padding for mobile textareas */
 @media (max-width: 768px) {
   textarea {
-    padding: 1.5rem !important; /* Smaller padding on phones */
+    padding: 0.75rem 1rem !important; /* Smaller padding on phones */
     font-size: 14px !important;
   }
 }

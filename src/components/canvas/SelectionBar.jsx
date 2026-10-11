@@ -1,11 +1,13 @@
 import React from "react";
-import { CheckSquare, Square, Trash2, X } from "lucide-react";
+import { CheckSquare, Square, Trash2, X, Download } from "lucide-react";
 
 const SelectionBar = ({
   totalCount = 0,
   selectedCount = 0,
   onSelectAll,
   onBatchDelete,
+  onDownloadSelected,
+  isDownloading = false,
   onDeleteAll,
   onCancel,
   isDarkMode = true,
@@ -32,12 +34,27 @@ const SelectionBar = ({
         </button>
 
         <span className="text-xs font-bold text-slate-400">
-          <strong className="text-white font-extrabold">{selectedCount}</strong> of selected
+          <strong className="text-white font-extrabold">{selectedCount}</strong> of {totalCount} selected
         </span>
       </div>
 
       {/* Right: Delete Selected & Delete All Action Buttons */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        {selectedCount > 0 && onDownloadSelected && (
+          <button
+            type="button"
+            onClick={onDownloadSelected}
+            disabled={isDownloading}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-extrabold shadow-lg shadow-blue-600/30 active:scale-95 transition cursor-pointer ${
+              isDownloading ? "opacity-60 cursor-wait" : ""
+            }`}
+            title="Download selected items (multiple items download as a .zip)"
+          >
+            <Download size={15} />
+            <span>{isDownloading ? "Preparing..." : `Download Selected (${selectedCount})`}</span>
+          </button>
+        )}
+
         {selectedCount > 0 && (
           <button
             type="button"
