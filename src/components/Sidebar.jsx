@@ -10,6 +10,7 @@ import {
   Moon,
   Package,
   KeyRound,
+  LockKeyhole,
 } from "lucide-react";
 
 const Sidebar = ({
@@ -159,6 +160,31 @@ const Sidebar = ({
             }`}
           />
           Saved Links
+        </button>
+
+        {/* Credentials Tab */}
+        <button
+          onClick={() => setViewType("credentials")}
+          aria-current={viewType === "credentials" ? "page" : undefined}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold text-sm group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            viewType === "credentials"
+              ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+              : isDarkMode
+              ? "text-slate-400 hover:text-white hover:bg-slate-800/60"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          }`}
+        >
+          <LockKeyhole
+            size={18}
+            className={`transition-colors duration-200 ${
+              viewType === "credentials"
+                ? "text-white"
+                : isDarkMode
+                ? "text-slate-500 group-hover:text-slate-300"
+                : "text-slate-400 group-hover:text-slate-700"
+            }`}
+          />
+          Credentials
         </button>
 
         {/* Large Files Tab */}

@@ -546,6 +546,19 @@ const Notepad = ({
           }`}
         >
           <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar flex-1 min-w-0">
+            <button
+              type="button"
+              onClick={onAddTab}
+              className={`sticky left-0 z-10 h-8 w-8 flex items-center justify-center shrink-0 rounded-lg transition-colors duration-200 cursor-pointer border ${
+                isDarkMode
+                  ? "bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
+                  : "bg-white hover:bg-slate-200 text-slate-600 border-slate-300 shadow-sm"
+              }`}
+              title="Create New Note"
+            >
+              <Plus size={15} />
+            </button>
+
             {filteredTabs.map((tab) => {
               const isActive = tab.id === activeTabId;
               const hasDraft = drafts[tab.id] !== undefined;
@@ -569,18 +582,6 @@ const Notepad = ({
               );
             })}
 
-            <button
-              type="button"
-              onClick={onAddTab}
-              className={`h-8 w-8 flex items-center justify-center shrink-0 rounded-lg transition-all duration-200 cursor-pointer border ${
-                isDarkMode
-                  ? "bg-slate-800/60 hover:bg-slate-800 text-slate-300 border-slate-700/60"
-                  : "bg-white hover:bg-slate-200 text-slate-600 border-slate-300 shadow-sm"
-              }`}
-              title="Create New Note"
-            >
-              <Plus size={15} />
-            </button>
           </div>
 
           {/* Note Search Input */}

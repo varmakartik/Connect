@@ -6,6 +6,7 @@ import ChangePasswordModal from "../components/ChangePasswordModal";
 import MobileTopBar from "../components/dashboard/MobileTopBar";
 import DashboardModals from "../components/dashboard/DashboardModals";
 import WorkspaceView from "../components/dashboard/WorkspaceView";
+import { NON_DOCUMENT_TYPES } from "../lib/itemTypes";
 
 // Returns a function with a permanent identity that always runs the latest `fn`,
 // so memoized children don't re-render just because Dashboard re-rendered.
@@ -108,6 +109,9 @@ const Dashboard = () => {
         break;
       case "links":
         document.title = "Saved Links - Connect";
+        break;
+      case "credentials":
+        document.title = "Credentials - Connect";
         break;
       case "story":
         document.title = "Behind the Spark ✨ - Connect";
@@ -241,7 +245,7 @@ const Dashboard = () => {
   const generateAutoDocTitle = useCallback((itemsList, currentId = null) => {
     const existingTitles = new Set(
       itemsList
-        .filter((i) => i.type !== "note" && i.type !== "link" && i.id !== currentId)
+        .filter((i) => !NON_DOCUMENT_TYPES.has(i.type) && i.id !== currentId)
         .map((i) => (i.title || "").toLowerCase().trim())
     );
     let num = 1;
@@ -587,6 +591,35 @@ const Dashboard = () => {
     [items]
   );
 
+  // Insert (no id) or update (with id) a row; used by the Credentials vault.
+  // Throws on failure so the caller can surface the error in its own form.
+  const upsertItem = async ({ id, ...fields }) => {
+    if (!user) throw new Error("Not signed in.");
+
+    if (id) {
+      const backupItems = [...items];
+      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...fields } : i)));
+      const { data, error } = await supabase
+        .from("items")
+        .update(fields)
+        .eq("id", id)
+        .select();
+      if (error) {
+        setItems(backupItems);
+        throw error;
+      }
+      return data?.[0];
+    }
+
+    const { data, error } = await supabase
+      .from("items")
+      .insert([{ ...fields, user_id: user.id }])
+      .select();
+    if (error) throw error;
+    if (data?.[0]) setItems((prev) => [data[0], ...prev]);
+    return data?.[0];
+  };
+
   const createFolder = async (folderTitle, parentFolderId = null) => {
     if (!user) return;
     try {
@@ -846,7 +879,7 @@ const Dashboard = () => {
     // Filter out duplicates scoped to each file's own resolved destination folder
     const existingDocTitles = new Set(
       items
-        .filter((i) => i.type !== "note" && i.type !== "link" && i.type !== "folder")
+        .filter((i) => !NON_DOCUMENT_TYPES.has(i.type) && i.type !== "folder")
         .map((i) => `${i.folder_id || ""}::${(i.title || "").toLowerCase()}`)
     );
 
@@ -1167,6 +1200,7 @@ const Dashboard = () => {
   const stableRenameItem = useStableHandler(renameItem);
   const stableAddLinkItem = useStableHandler(addLinkItem);
   const stableEditLinkItem = useStableHandler(editLinkItem);
+  const stableUpsertItem = useStableHandler(upsertItem);
   const closeUploadProgress = useCallback(() => setUploadProgress(null), []);
 
   return (
@@ -1258,6 +1292,7 @@ const Dashboard = () => {
           renameItem={stableRenameItem}
           addLinkItem={stableAddLinkItem}
           editLinkItem={stableEditLinkItem}
+          upsertItem={stableUpsertItem}
           isDarkMode={isDarkMode}
         />
       </main>

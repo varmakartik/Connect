@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import Footer from "../common/Footer";
+import { NON_DOCUMENT_TYPES } from "../../lib/itemTypes";
 
 // Lazy-load subcomponents to decrease initial bundle size and boost performance
 const Notepad = lazy(() => import("../Notepad"));
@@ -8,6 +9,7 @@ const CanvasEditor = lazy(() => import("../CanvasEditor"));
 const OurStory = lazy(() => import("../OurStory"));
 const LinkVault = lazy(() => import("../LinkVault"));
 const LargeFilesView = lazy(() => import("../LargeFilesView"));
+const CredentialVault = lazy(() => import("../CredentialVault"));
 
 const SubcomponentLoader = () => (
   <div className="flex-1 flex flex-col items-center justify-center bg-slate-900 text-slate-400 py-20">
@@ -35,12 +37,13 @@ const WorkspaceView = ({
   renameItem,
   addLinkItem,
   editLinkItem,
+  upsertItem,
   isDarkMode,
 }) => {
   // Stable per-view lists so memoized views only re-render when their data changes
   const noteItems = useMemo(() => items.filter((i) => i.type === "note"), [items]);
   const documentItems = useMemo(
-    () => items.filter((i) => i.type !== "note" && i.type !== "link"),
+    () => items.filter((i) => !NON_DOCUMENT_TYPES.has(i.type)),
     [items]
   );
 
@@ -79,6 +82,14 @@ const WorkspaceView = ({
               onAddLink={addLinkItem}
               onDeleteLink={deleteItem}
               onEditLink={editLinkItem}
+              isDarkMode={isDarkMode}
+            />
+          ) : viewType === "credentials" ? (
+            <CredentialVault
+              items={items}
+              onUpsert={upsertItem}
+              onDelete={deleteItem}
+              onDeleteMultiple={deleteMultipleItems}
               isDarkMode={isDarkMode}
             />
           ) : viewType === "largefiles" ? (

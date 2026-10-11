@@ -6,6 +6,7 @@ const ConfirmModal = ({
   onClose,
   onConfirm,
   title,
+  message,
   confirmText = "Confirm",
   isDanger = true,
   children,
@@ -47,7 +48,7 @@ const ConfirmModal = ({
           <h3 id={headingId} className="text-xl font-bold mb-2">{title}</h3>
 
           {/* Render children prop for flexible modal body */}
-          <div className="text-sm text-slate-400 mb-6">{children}</div>
+          <div className="text-sm text-slate-400 mb-6">{children ?? message}</div>
 
           <div className="flex gap-3 w-full">
             <button
