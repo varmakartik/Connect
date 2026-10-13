@@ -81,14 +81,32 @@ const flushBatch = async () => {
     if (error) {
       console.warn("Could not sign storage objects:", error.message);
     } else {
-      for (const entry of data || []) {
-        if (entry.signedUrl && !entry.error) resolved.set(entry.path, entry.signedUrl);
-        else console.warn("Could not sign storage object:", entry.path, entry.error);
-      }
+      // Match results by position, not by entry.path: Supabase echoes paths
+      // back decoded ("a b.pdf"), while rows saved from public URLs hold them
+      // encoded ("a%20b.pdf"), so a lookup by path text misses those files.
+      (data || []).forEach((entry, i) => {
+        if (entry?.signedUrl && !entry.error) resolved.set(paths[i], entry.signedUrl);
+      });
     }
   } catch (err) {
     console.warn("Could not sign storage objects:", err);
   }
+
+  // Anything the batch didn't sign gets the original one-at-a-time request
+  const missing = paths.filter((p) => !resolved.has(p));
+  await Promise.all(
+    missing.map(async (path) => {
+      try {
+        const { data, error } = await supabase.storage
+          .from(BUCKET)
+          .createSignedUrl(path, SIGN_TTL_SECONDS);
+        if (data?.signedUrl) resolved.set(path, data.signedUrl);
+        else console.warn("Could not sign storage object:", path, error?.message);
+      } catch (err) {
+        console.warn("Could not sign storage object:", path, err);
+      }
+    })
+  );
 
   for (const [path, resolve] of batch) {
     const url = resolved.get(path) || null;
