@@ -17,13 +17,21 @@ const SelectionBar = ({
   const isAllSelected = selectedCount > 0 && selectedCount === totalCount;
 
   return (
-    <div className="w-full bg-[#0b1329] border border-slate-800/90 p-4 px-6 rounded-2xl mb-6 flex flex-wrap items-center justify-between gap-4 shadow-2xl animate-fadeIn select-none">
+    <div
+      className={`w-full border p-4 px-4 sm:px-6 rounded-2xl mb-6 flex flex-wrap items-center justify-between gap-4 animate-fadeIn select-none ${
+        isDarkMode ? "bg-[#0b1329] border-slate-800/90 shadow-2xl" : "bg-white border-slate-200 shadow-md"
+      }`}
+    >
       {/* Left: Select All Checkbox & Count */}
       <div className="flex items-center gap-4">
         <button
           type="button"
           onClick={onSelectAll}
-          className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
+          className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition cursor-pointer ${
+            isDarkMode
+              ? "bg-slate-950 border-slate-800 hover:border-slate-700 text-slate-200"
+              : "bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-700"
+          }`}
         >
           {isAllSelected ? (
             <CheckSquare size={16} className="text-blue-400" />
@@ -34,7 +42,7 @@ const SelectionBar = ({
         </button>
 
         <span className="text-xs font-bold text-slate-400">
-          <strong className="text-white font-extrabold">{selectedCount}</strong> of {totalCount} selected
+          <strong className={`font-extrabold ${isDarkMode ? "text-white" : "text-slate-900"}`}>{selectedCount}</strong> of {totalCount} selected
         </span>
       </div>
 
@@ -69,7 +77,9 @@ const SelectionBar = ({
         <button
           type="button"
           onClick={onDeleteAll}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800/90 hover:border-red-500/40 text-slate-300 hover:text-red-400 text-xs font-bold active:scale-95 transition cursor-pointer"
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border hover:border-red-500/40 hover:text-red-500 text-xs font-bold active:scale-95 transition cursor-pointer ${
+            isDarkMode ? "bg-slate-950 border-slate-800/90 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+          }`}
           title="Delete all documents"
         >
           <Trash2 size={15} />
@@ -80,7 +90,9 @@ const SelectionBar = ({
           <button
             type="button"
             onClick={onCancel}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className={`p-2 rounded-xl text-slate-400 transition cursor-pointer ${
+              isDarkMode ? "hover:text-white hover:bg-slate-800" : "hover:text-slate-900 hover:bg-slate-100"
+            }`}
             title="Exit select mode"
           >
             <X size={16} />

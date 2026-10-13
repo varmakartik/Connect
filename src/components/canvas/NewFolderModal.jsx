@@ -31,7 +31,7 @@ const NewFolderModal = ({ isOpen, onClose, onCreateFolder, isDarkMode = true }) 
             : "bg-white border-slate-200 text-slate-900 shadow-slate-200"
         }`}
       >
-        <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-4 mb-4">
+        <div className={`flex items-center justify-between gap-2 border-b pb-4 mb-4 ${isDarkMode ? "border-slate-800/80" : "border-slate-200"}`}>
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
               <FolderPlus size={20} />

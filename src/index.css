@@ -1,4 +1,15 @@
 @import "tailwindcss";
+/* 0. Warm "sand" light theme. Tailwind reads every color through these
+   variables, so overriding the lightest shades turns the stark whites into
+   soft beach tones everywhere in light mode, without touching dark mode. */
+:root[data-theme="light"] {
+  --color-white: #fffcf6;     /* cards and surfaces: warm ivory */
+  --color-slate-50: #faf3e8;  /* page background: light sand */
+  --color-slate-100: #f3e9da; /* chips, inputs, hover fills */
+  --color-slate-200: #e8dac5; /* borders */
+  --color-slate-300: #d8c5a9; /* stronger borders */
+}
+
 /* 1. Prevent the page from bouncing/scrolling behind the editor */
 html, body {
   overscroll-behavior-y: contain;

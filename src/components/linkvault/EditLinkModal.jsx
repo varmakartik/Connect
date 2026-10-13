@@ -72,7 +72,7 @@ const EditLinkModal = ({ linkItem, onClose, onSave, isDarkMode = true }) => {
           <X size={16} />
         </button>
 
-        <div className="flex items-center gap-3.5 mb-5 pb-4 border-b border-slate-800/60">
+        <div className={`flex items-center gap-3.5 mb-5 pb-4 border-b ${isDarkMode ? "border-slate-800/60" : "border-slate-200"}`}>
           <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-blue-600/20 to-indigo-600/20 text-blue-400 border border-blue-500/30">
             <Pencil size={20} />
           </div>
@@ -85,7 +85,7 @@ const EditLinkModal = ({ linkItem, onClose, onSave, isDarkMode = true }) => {
           <div className="space-y-2">
             <label
               htmlFor={titleFieldId}
-              className="text-xs font-bold text-slate-300 flex items-center gap-1.5"
+              className={`text-xs font-bold flex items-center gap-1.5 ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}
             >
               <Bookmark size={13} className="text-blue-400" />
               <span>Link Title</span>
@@ -108,7 +108,7 @@ const EditLinkModal = ({ linkItem, onClose, onSave, isDarkMode = true }) => {
           <div className="space-y-2">
             <label
               htmlFor={urlFieldId}
-              className="text-xs font-bold text-slate-300 flex items-center gap-1.5"
+              className={`text-xs font-bold flex items-center gap-1.5 ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}
             >
               <Globe size={13} className="text-indigo-400" />
               <span>Target URL</span>
@@ -132,7 +132,9 @@ const EditLinkModal = ({ linkItem, onClose, onSave, isDarkMode = true }) => {
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-bold text-sm transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+            className={`flex-1 px-4 py-3 rounded-xl font-bold text-sm transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${
+              isDarkMode ? "bg-slate-800 text-slate-300 hover:bg-slate-700" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
           >
             Cancel
           </button>

@@ -66,7 +66,7 @@ const CanvasToolbar = ({
               title="Create a new folder"
             >
               <FolderPlus size={15} />
-              <span>+ Folder</span>
+              <span>New Folder</span>
             </button>
           )}
 

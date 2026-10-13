@@ -62,8 +62,9 @@
         var dark = false;
         try { dark = localStorage.getItem("connect_theme") === "dark"; } catch (e) {}
         var root = document.documentElement;
+        root.dataset.theme = dark ? "dark" : "light";
         root.style.colorScheme = dark ? "dark" : "light";
-        root.style.backgroundColor = dark ? "#020617" : "#f8fafc";
+        root.style.backgroundColor = dark ? "#020617" : "#faf3e8";
       })();
     </script>
   </head>

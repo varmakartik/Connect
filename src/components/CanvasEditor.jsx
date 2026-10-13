@@ -485,12 +485,18 @@ const CanvasEditor = ({
           <div className="space-y-8">
             {/* DEDICATED TOP-STACKED FOLDERS SECTION */}
             {foldersList.length > 0 && (
-              <div className="border-b border-slate-800/60 pb-6">
+              <div
+                className={
+                  documentsList.length > 0
+                    ? `border-b pb-6 ${isDarkMode ? "border-slate-800/60" : "border-slate-200"}`
+                    : ""
+                }
+              >
                 <h4 className="text-xs font-black uppercase tracking-wider text-amber-400 mb-3 flex items-center gap-1.5">
                   <Folder size={14} className="fill-amber-400/20" />
                   <span>Folders ({foldersList.length})</span>
                 </h4>
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                   {foldersList.map((item) => (
                     <FolderCard
                       key={item.id}

@@ -18,6 +18,7 @@ export const storeIsDarkMode = (isDark) => {
     // Storage unavailable — the theme just won't persist across reloads
   }
   const root = document.documentElement;
+  root.dataset.theme = isDark ? "dark" : "light"; // enables the sand palette in index.css
   root.style.colorScheme = isDark ? "dark" : "light";
-  root.style.backgroundColor = isDark ? "#020617" : "#f8fafc";
+  root.style.backgroundColor = isDark ? "#020617" : "#faf3e8";
 };

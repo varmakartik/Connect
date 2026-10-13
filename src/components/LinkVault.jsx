@@ -4,6 +4,7 @@ import ToastNotification from "./common/ToastNotification";
 import LinkVaultForm from "./linkvault/LinkVaultForm";
 import LinkCardItem from "./linkvault/LinkCardItem";
 import EditLinkModal from "./linkvault/EditLinkModal";
+import { shortenUrl } from "../lib/format";
 
 const LinkVault = ({ items = [], onAddLink, onDeleteLink, onEditLink, isDarkMode = true }) => {
   const [title, setTitle] = useState("");
@@ -60,7 +61,7 @@ const LinkVault = ({ items = [], onAddLink, onDeleteLink, onEditLink, isDarkMode
         setNotification({
           type: "warning",
           title: "Duplicate Link URL",
-          message: `The URL "${trimmedUrl}" is already saved in your Link Vault!`,
+          message: `"${shortenUrl(trimmedUrl)}" is already saved in your Link Vault.`,
         });
         return;
       }

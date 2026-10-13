@@ -189,7 +189,7 @@ const DocumentCard = ({
         )}
 
         {codeMode && (
-          <div className="p-2.5 rounded-xl bg-slate-800 shrink-0">
+          <div className={`p-2.5 rounded-xl shrink-0 ${isDarkMode ? "bg-slate-800" : "bg-slate-100"}`}>
             {details.icon}
           </div>
         )}
@@ -215,7 +215,7 @@ const DocumentCard = ({
                   e.stopPropagation();
                   onSaveTitle(item.id);
                 }}
-                className="text-emerald-400 p-1.5 hover:bg-slate-800 rounded-xl cursor-pointer"
+                className={`text-emerald-500 p-1.5 rounded-xl cursor-pointer ${isDarkMode ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
               >
                 <Check size={18} />
               </button>
@@ -224,7 +224,7 @@ const DocumentCard = ({
                   e.stopPropagation();
                   onCancelEditing();
                 }}
-                className="text-red-400 p-1.5 hover:bg-slate-800 rounded-xl cursor-pointer"
+                className={`text-red-500 p-1.5 rounded-xl cursor-pointer ${isDarkMode ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
               >
                 <X size={18} />
               </button>
@@ -339,7 +339,7 @@ const DocumentCard = ({
               </button>
             </div>
 
-            <div className="flex items-center justify-between px-1 border-t border-slate-800/40 pt-3">
+            <div className={`flex items-center justify-between px-1 border-t pt-3 ${isDarkMode ? "border-slate-800/40" : "border-slate-200"}`}>
               <button
                 type="button"
                 onClick={(e) => {
@@ -415,7 +415,7 @@ const DocumentCard = ({
                 e.stopPropagation();
                 onStartEditing(item);
               }}
-              className="p-2.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-xl transition cursor-pointer"
+              className={`p-2.5 text-slate-400 hover:text-blue-500 rounded-xl transition cursor-pointer ${isDarkMode ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
               title="Rename File"
             >
               <Edit3 size={16} />
@@ -426,7 +426,7 @@ const DocumentCard = ({
                 e.stopPropagation();
                 onConfirmDelete(item);
               }}
-              className="p-2.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl transition cursor-pointer"
+              className={`p-2.5 text-slate-400 hover:text-red-500 rounded-xl transition cursor-pointer ${isDarkMode ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
               title="Delete File"
             >
               <Trash2 size={16} />

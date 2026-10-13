@@ -8,6 +8,7 @@ import DashboardModals from "../components/dashboard/DashboardModals";
 import WorkspaceView from "../components/dashboard/WorkspaceView";
 import { NON_DOCUMENT_TYPES } from "../lib/itemTypes";
 import { getStoredIsDarkMode, storeIsDarkMode } from "../lib/theme";
+import { shortenUrl } from "../lib/format";
 
 // Returns a function with a permanent identity that always runs the latest `fn`,
 // so memoized children don't re-render just because Dashboard re-rendered.
@@ -550,7 +551,7 @@ const Dashboard = () => {
         setNotification({
           type: "warning",
           title: "Duplicate Link URL",
-          message: `The URL "${trimmedUrl}" is already saved in your Link Vault!`,
+          message: `"${shortenUrl(trimmedUrl)}" is already saved in your Link Vault.`,
         });
         return;
       }

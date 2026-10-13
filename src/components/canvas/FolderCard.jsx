@@ -111,7 +111,7 @@ const FolderCard = ({
                   e.stopPropagation();
                   onSaveTitle(item.id);
                 }}
-                className="text-emerald-400 p-1.5 hover:bg-slate-800 rounded-xl cursor-pointer shrink-0"
+                className={`text-emerald-500 p-1.5 rounded-xl cursor-pointer shrink-0 ${isDarkMode ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
                 title="Save Title"
               >
                 <Check size={16} />
@@ -122,7 +122,7 @@ const FolderCard = ({
                   e.stopPropagation();
                   onCancelEditing();
                 }}
-                className="text-red-400 p-1.5 hover:bg-slate-800 rounded-xl cursor-pointer shrink-0"
+                className={`text-red-500 p-1.5 rounded-xl cursor-pointer shrink-0 ${isDarkMode ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
                 title="Cancel"
               >
                 <X size={16} />
@@ -147,7 +147,7 @@ const FolderCard = ({
       </div>
 
       {/* Spacious & Clean Action Footer */}
-      <div className="space-y-3 pt-3 border-t border-slate-800/50">
+      <div className={`space-y-3 pt-3 border-t ${isDarkMode ? "border-slate-800/50" : "border-slate-200"}`}>
         <div className="flex items-stretch gap-2">
         <button
           type="button"
